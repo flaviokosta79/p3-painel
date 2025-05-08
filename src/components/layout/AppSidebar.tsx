@@ -1,4 +1,3 @@
-
 import { 
   Sidebar, 
   SidebarContent,
@@ -14,7 +13,7 @@ import { Home, File, Users, FileText, Settings, Archive } from "lucide-react";
 import { NavLink } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 import brazilianFlag from "@/assets/brazilian-flag.svg";
-import pmerjLogo from "@/assets/pmerj-logo.svg";
+import newLogo from "@/assets/5cpa.png"; // Novo logo
 
 export function AppSidebar() {
   const { user } = useAuth();
@@ -23,12 +22,11 @@ export function AppSidebar() {
   return (
     <Sidebar>
       <SidebarHeader className="py-4 flex justify-center items-center">
-        <div className="flex flex-col items-center gap-2">
-          <div className="w-16 h-16 flex items-center justify-center">
+        <div className="flex flex-col items-center gap-2">          <div className="w-16 h-16 flex items-center justify-center">
             <img 
-              src={pmerjLogo} 
-              alt="PMERJ Logo" 
-              className="w-full h-full object-contain"
+              src={newLogo} // Novo logo
+              alt="Logo 5º CPA" 
+              className="h-16 w-auto" // Mantendo a altura, a largura será automática. Pode precisar de ajuste.
             />
           </div>
           <div className="text-center">

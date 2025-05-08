@@ -1,4 +1,3 @@
-
 import { useState, FormEvent } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
@@ -6,7 +5,7 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import pmerjLogo from "@/assets/pmerj-logo.svg";
+import newLogo from "@/assets/5cpa.png"; // Novo logo
 import { toast } from "@/hooks/use-toast";
 
 const Login = () => {
@@ -56,11 +55,10 @@ const Login = () => {
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-b from-pmerj-blue to-pmerj-blue/90 p-4">
       <div className="w-full max-w-md">
-        <div className="mb-8 flex flex-col items-center">
-          <img
-            src={pmerjLogo}
-            alt="PMERJ Logo"
-            className="w-24 h-24"
+        <div className="mb-8 flex flex-col items-center">          <img
+            src={newLogo}
+            alt="Logo 5º CPA"
+            className="h-24 w-auto"
           />
           <h1 className="mt-4 text-2xl font-bold text-white font-heading">
             Sistema de Gestão Documental

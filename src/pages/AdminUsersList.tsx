@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { useUsers, UserData } from "@/hooks/useUsers";
 import { MainLayout } from "@/components/layout/MainLayout";
@@ -39,11 +38,11 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { Badge } from "@/components/ui/badge";
-import { Plus, Search, MoreHorizontal, Edit, Trash, Check } from "lucide-react";
+import { Plus, Search, MoreHorizontal, Edit, Trash, Check, UserX, UserCheck } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 
 const AdminUsersList = () => {
-  const { users, loading, deleteUser } = useUsers();
+  const { users, loading, deleteUser, toggleUserStatus } = useUsers();
   const navigate = useNavigate();
   
   const [searchTerm, setSearchTerm] = useState("");
@@ -72,11 +71,21 @@ const AdminUsersList = () => {
     return a.name.localeCompare(b.name);
   });
   
-  const handleToggleStatus = async (user: UserData) => {
+  const handleToggleUserStatus = async (userId: string) => {
     try {
-      await deleteUser(user.id);
+      await toggleUserStatus(userId);
     } catch (error) {
       console.error("Erro ao alterar status do usuário:", error);
+    }
+  };
+
+  const handleDeleteUser = async (userId: string) => {
+    try {
+      // await deleteUser(user.id); // Modificado para passar apenas o ID
+      await deleteUser(userId);
+    } catch (error) {
+      // console.error("Erro ao alterar status do usuário:", error); // Mensagem atualizada
+      console.error("Erro ao excluir usuário:", error);
     }
   };
   
@@ -133,7 +142,7 @@ const AdminUsersList = () => {
                       <TableHead>E-mail</TableHead>
                       <TableHead>Perfil</TableHead>
                       <TableHead>Unidade</TableHead>
-                      <TableHead>Status</TableHead>
+                      <TableHead>Status</TableHead> {/* Coluna de Status restaurada */}
                       <TableHead className="w-[80px]">Ações</TableHead>
                     </TableRow>
                   </TableHeader>
@@ -148,7 +157,7 @@ const AdminUsersList = () => {
                           </Badge>
                         </TableCell>
                         <TableCell>{user.unit.name}</TableCell>
-                        <TableCell>
+                        <TableCell> {/* Célula de Status restaurada */}
                           <Badge className={user.active ? "bg-green-500" : "bg-red-500"}>
                             {user.active ? "Ativo" : "Inativo"}
                           </Badge>
@@ -165,18 +174,19 @@ const AdminUsersList = () => {
                                 <Edit className="mr-2 h-4 w-4" />
                                 Editar
                               </DropdownMenuItem>
-                              
+
+                              {/* Opção para Ativar/Desativar Usuário */}
                               <AlertDialog>
                                 <AlertDialogTrigger asChild>
                                   <DropdownMenuItem onSelect={(e) => e.preventDefault()}>
                                     {user.active ? (
                                       <>
-                                        <Trash className="mr-2 h-4 w-4" />
+                                        <UserX className="mr-2 h-4 w-4" />
                                         Desativar
                                       </>
                                     ) : (
                                       <>
-                                        <Check className="mr-2 h-4 w-4" />
+                                        <UserCheck className="mr-2 h-4 w-4" />
                                         Ativar
                                       </>
                                     )}
@@ -189,17 +199,44 @@ const AdminUsersList = () => {
                                     </AlertDialogTitle>
                                     <AlertDialogDescription>
                                       {user.active
-                                        ? "Tem certeza que deseja desativar este usuário? Ele não poderá mais acessar o sistema."
-                                        : "Tem certeza que deseja ativar este usuário? Ele poderá acessar o sistema novamente."}
+                                        ? `Tem certeza que deseja desativar o usuário "${user.name}"? Ele não poderá mais acessar o sistema.`
+                                        : `Tem certeza que deseja ativar o usuário "${user.name}"? Ele poderá acessar o sistema novamente.`}
                                     </AlertDialogDescription>
                                   </AlertDialogHeader>
                                   <AlertDialogFooter>
                                     <AlertDialogCancel>Cancelar</AlertDialogCancel>
                                     <AlertDialogAction
-                                      className={user.active ? "bg-red-500 hover:bg-red-600" : "bg-green-500 hover:bg-green-600"}
-                                      onClick={() => handleToggleStatus(user)}
+                                      className={user.active ? "bg-orange-500 hover:bg-orange-600" : "bg-green-500 hover:bg-green-600"}
+                                      onClick={() => handleToggleUserStatus(user.id)}
                                     >
                                       {user.active ? "Desativar" : "Ativar"}
+                                    </AlertDialogAction>
+                                  </AlertDialogFooter>
+                                </AlertDialogContent>
+                              </AlertDialog>
+
+                              {/* Opção para Excluir Usuário Permanentemente */}
+                              <AlertDialog>
+                                <AlertDialogTrigger asChild>
+                                  <DropdownMenuItem onSelect={(e) => e.preventDefault()} className="text-red-600 hover:text-red-700 focus:text-red-700 focus:bg-red-100">
+                                    <Trash className="mr-2 h-4 w-4" />
+                                    Excluir
+                                  </DropdownMenuItem>
+                                </AlertDialogTrigger>
+                                <AlertDialogContent>
+                                  <AlertDialogHeader>
+                                    <AlertDialogTitle>Excluir Usuário Permanentemente</AlertDialogTitle>
+                                    <AlertDialogDescription>
+                                      Tem certeza que deseja excluir o usuário "{user.name}" permanentemente? Esta ação não pode ser desfeita e o usuário será removido do sistema.
+                                    </AlertDialogDescription>
+                                  </AlertDialogHeader>
+                                  <AlertDialogFooter>
+                                    <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                                    <AlertDialogAction
+                                      className="bg-red-600 hover:bg-red-700"
+                                      onClick={() => handleDeleteUser(user.id)}
+                                    >
+                                      Excluir Permanentemente
                                     </AlertDialogAction>
                                   </AlertDialogFooter>
                                 </AlertDialogContent>

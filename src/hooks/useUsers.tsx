@@ -1,4 +1,3 @@
-
 import { createContext, useContext, useState, ReactNode, useEffect } from 'react';
 import { UserRole, Unit } from './useAuth';
 import { toast } from '@/hooks/use-toast';
@@ -12,6 +11,7 @@ export interface UserData {
   unit: Unit;
   createdAt: string;
   lastLogin?: string;
+ 
   active: boolean;
 }
 
@@ -20,7 +20,8 @@ interface UsersContextType {
   loading: boolean;
   addUser: (user: Omit<UserData, 'id' | 'createdAt'>) => Promise<boolean>;
   updateUser: (id: string, data: Partial<Omit<UserData, 'id'>>) => Promise<boolean>;
-  deleteUser: (id: string) => Promise<boolean>;
+  deleteUser: (id: string) => Promise<boolean>; // Para exclusão permanente
+  toggleUserStatus: (id: string) => Promise<boolean>; // Nova função para ativar/desativar
   getUserById: (id: string) => UserData | undefined;
   getUnits: () => Unit[];
 }
@@ -186,29 +187,58 @@ export function UsersProvider({ children }: { children: ReactNode }) {
       return false;
     }
   };
-  
+
+  const toggleUserStatus = async (id: string) => {
+    try {
+      let userNewStatus = false;
+      const updatedUsers = users.map((user) => {
+        if (user.id === id) {
+          userNewStatus = !user.active; // Captura o novo status para a mensagem do toast
+          return { ...user, active: !user.active };
+        }
+        return user;
+      });
+
+      setUsers(updatedUsers);
+      localStorage.setItem('pmerj_users', JSON.stringify(updatedUsers));
+
+      toast({
+        title: `Usuário ${userNewStatus ? "ativado" : "desativado"}`,
+        description: `O usuário foi ${userNewStatus ? "ativado" : "desativado"} com sucesso.`,
+      });
+
+      return true;
+    } catch (error) {
+      console.error('Erro ao alterar status do usuário:', error);
+      toast({
+        title: "Erro ao alterar status",
+        description: "Ocorreu um erro ao alterar o status do usuário.",
+        variant: "destructive",
+      });
+      return false;
+    }
+  };
+
   const deleteUser = async (id: string) => {
     try {
-      // Em vez de excluir, apenas desativa o usuário
-      const updatedUsers = users.map((user) =>
-        user.id === id ? { ...user, active: false } : user
-      );
+      // Modificado para remover permanentemente o usuário
+      const updatedUsers = users.filter((user) => user.id !== id);
       
       setUsers(updatedUsers);
       localStorage.setItem('pmerj_users', JSON.stringify(updatedUsers));
       
       toast({
-        title: "Usuário desativado",
-        description: "O usuário foi desativado com sucesso.",
+        title: "Usuário excluído", // Mensagem atualizada
+        description: "O usuário foi excluído permanentemente com sucesso.", // Mensagem atualizada
       });
       
       return true;
     } catch (error) {
-      console.error('Erro ao desativar usuário:', error);
+      console.error('Erro ao excluir usuário:', error); // Mensagem de erro atualizada
       
       toast({
-        title: "Erro ao desativar usuário",
-        description: "Ocorreu um erro ao desativar o usuário.",
+        title: "Erro ao excluir usuário", // Mensagem atualizada
+        description: "Ocorreu um erro ao excluir o usuário permanentemente.", // Mensagem atualizada
         variant: "destructive",
       });
       
@@ -229,7 +259,8 @@ export function UsersProvider({ children }: { children: ReactNode }) {
     loading,
     addUser,
     updateUser,
-    deleteUser,
+    deleteUser, // Mantém a exclusão permanente
+    toggleUserStatus, // Adiciona a nova função
     getUserById,
     getUnits,
   };
