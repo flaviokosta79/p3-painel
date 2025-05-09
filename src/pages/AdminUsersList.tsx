@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import { useUsers, UserData } from "@/hooks/useUsers";
 import { MainLayout } from "@/components/layout/MainLayout";
@@ -81,10 +82,8 @@ const AdminUsersList = () => {
 
   const handleDeleteUser = async (userId: string) => {
     try {
-      // await deleteUser(user.id); // Modificado para passar apenas o ID
       await deleteUser(userId);
     } catch (error) {
-      // console.error("Erro ao alterar status do usuário:", error); // Mensagem atualizada
       console.error("Erro ao excluir usuário:", error);
     }
   };
@@ -137,18 +136,18 @@ const AdminUsersList = () => {
                 <Table>
                   <TableCaption>Lista de usuários do sistema</TableCaption>
                   <TableHeader>
-                    <TableRow>
+                    <TableRow>{/* Removido o espaço em branco aqui */}
                       <TableHead>Nome</TableHead>
                       <TableHead>E-mail</TableHead>
                       <TableHead>Perfil</TableHead>
                       <TableHead>Unidade</TableHead>
-                      <TableHead>Status</TableHead> {/* Coluna de Status restaurada */}
+                      <TableHead>Status</TableHead>
                       <TableHead className="w-[80px]">Ações</TableHead>
-                    </TableRow>
+                    </TableRow>{/* Removido o espaço em branco aqui */}
                   </TableHeader>
                   <TableBody>
                     {sortedUsers.map((user) => (
-                      <TableRow key={user.id}>
+                      <TableRow key={user.id}>{/* Removido o espaço em branco aqui */}
                         <TableCell className="font-medium">{user.name}</TableCell>
                         <TableCell>{user.email}</TableCell>
                         <TableCell>
@@ -157,7 +156,7 @@ const AdminUsersList = () => {
                           </Badge>
                         </TableCell>
                         <TableCell>{user.unit.name}</TableCell>
-                        <TableCell> {/* Célula de Status restaurada */}
+                        <TableCell>
                           <Badge className={user.active ? "bg-green-500" : "bg-red-500"}>
                             {user.active ? "Ativo" : "Inativo"}
                           </Badge>
