@@ -97,52 +97,62 @@ export function DailyMissionsProvider({ children }: { children: ReactNode }) {
   const [dailyMissions, setDailyMissions] = useState<DayMissions[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  
-  // Carregar as missões diárias do Supabase ou do localStorage
+    // Carregar as missões diárias do Supabase ou do localStorage
   useEffect(() => {
     const loadDailyMissions = async () => {
       setLoading(true);
+      
+      // Verificar primeiro se temos dados no localStorage
+      const storedMissions = localStorage.getItem('pmerj_daily_missions');
+      
+      // Se tivermos dados no localStorage, use-os imediatamente para melhorar a UX
+      if (storedMissions) {
+        try {
+          const parsedMissions = JSON.parse(storedMissions);
+          setDailyMissions(parsedMissions);
+        } catch (parseError) {
+          console.warn("Erro ao processar missões do localStorage, usando valores padrão:", parseError);
+          setDailyMissions(defaultDailyMissions);
+        }
+      } else {
+        // Se não houver no localStorage, use os valores padrão
+        setDailyMissions(defaultDailyMissions);
+      }
+      
+      // Em paralelo, tente buscar dados atualizados do Supabase
       try {
-        // Primeiro, tente buscar do Supabase
+        // Verificar se o Supabase está configurado
+        if (!supabase || !supabase.from) {
+          console.warn("Cliente Supabase não está disponível ou configurado corretamente");
+          return;
+        }
+        
+        // Tente buscar do Supabase
         const { data, error } = await supabase
           .from('daily_missions')
           .select('*')
-          .order('dayNumber');
+          .order('day_number'); // Usar snake_case conforme o SQL do Supabase
         
         if (error) {
-          throw error;
-        }
-        
-        if (data && data.length > 0) {
-          // Se houver dados no Supabase, use-os
-          setDailyMissions(data as DayMissions[]);
-        } else {
-          // Se não houver dados no Supabase, tente o localStorage
-          const storedMissions = localStorage.getItem('pmerj_daily_missions');
+          console.warn("Erro ao buscar missões do Supabase:", error.message);
+          // Não lance um erro, apenas registre o aviso e continue usando dados locais
+        } else if (data && data.length > 0) {
+          // Se houver dados no Supabase, converta-os para o formato correto e atualize
+          const formattedData = data.map(item => ({
+            day: item.day,
+            dayNumber: item.day_number,
+            tasks: Array.isArray(item.tasks) ? item.tasks : JSON.parse(item.tasks)
+          }));
           
-          if (storedMissions) {
-            setDailyMissions(JSON.parse(storedMissions));
-          } else {
-            // Se não houver dados no localStorage, use os padrões
-            setDailyMissions(defaultDailyMissions);
-            // Salve os dados padrões no localStorage
-            localStorage.setItem('pmerj_daily_missions', JSON.stringify(defaultDailyMissions));
-          }
+          // Atualizar estado e localStorage
+          setDailyMissions(formattedData as DayMissions[]);
+          localStorage.setItem('pmerj_daily_missions', JSON.stringify(formattedData));
         }
       } catch (err) {
         const errorMessage = err instanceof Error ? err.message : 'Erro desconhecido ao carregar missões';
         console.error("Erro ao carregar missões diárias:", errorMessage);
         setError(errorMessage);
-        
-        // Em caso de erro, tente carregar do localStorage
-        const storedMissions = localStorage.getItem('pmerj_daily_missions');
-        
-        if (storedMissions) {
-          setDailyMissions(JSON.parse(storedMissions));
-        } else {
-          setDailyMissions(defaultDailyMissions);
-          localStorage.setItem('pmerj_daily_missions', JSON.stringify(defaultDailyMissions));
-        }
+        // Não é necessário fazer nada aqui, pois já carregamos do localStorage ou usamos os valores padrão
       } finally {
         setLoading(false);
       }
@@ -206,10 +216,21 @@ export function DailyMissionsProvider({ children }: { children: ReactNode }) {
     // Salvar no localStorage para ter um backup
     localStorage.setItem('pmerj_daily_missions', JSON.stringify(dailyMissions));
   };
-  
-  // Salvar todas as alterações no Supabase
+    // Salvar todas as alterações no Supabase
   const saveAllChanges = async () => {
     try {
+      // Verificar se o Supabase está disponível
+      if (!supabase || !supabase.from) {
+        throw new Error('Cliente Supabase não está disponível');
+      }
+      
+      // Formatar os dados para o formato esperado pelo Supabase (snake_case)
+      const formattedMissions = dailyMissions.map(mission => ({
+        day: mission.day,
+        day_number: mission.dayNumber,
+        tasks: JSON.stringify(mission.tasks)
+      }));
+      
       // Primeiro, deletar todas as missões existentes
       const { error: deleteError } = await supabase
         .from('daily_missions')
@@ -217,33 +238,82 @@ export function DailyMissionsProvider({ children }: { children: ReactNode }) {
         .not('id', 'is', null); // Garantir que estamos deletando registros existentes
       
       if (deleteError) {
+        console.error("Erro ao excluir missões existentes:", deleteError);
         throw deleteError;
       }
       
       // Depois, inserir as missões atualizadas
       const { error: insertError } = await supabase
         .from('daily_missions')
-        .insert(dailyMissions);
+        .insert(formattedMissions);
       
       if (insertError) {
+        console.error("Erro ao inserir novas missões:", insertError);
         throw insertError;
       }
+      
+      // Atualizar localStorage com os dados atuais
+      localStorage.setItem('pmerj_daily_missions', JSON.stringify(dailyMissions));
       
       return;
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Erro desconhecido ao salvar missões';
       console.error("Erro ao salvar todas as alterações:", errorMessage);
+      
+      // Mesmo em caso de erro, salvar localmente
+      localStorage.setItem('pmerj_daily_missions', JSON.stringify(dailyMissions));
+      
       throw new Error(errorMessage);
     }
   };
-  
-  // Fazer upload de um arquivo para o Supabase Storage
-  const uploadFile = async (taskId: string, file: File): Promise<string> => {
+    // Fazer upload de um arquivo para o Supabase Storage
+  const uploadFile = async (taskId: string, file: File, userId: string = 'default-user'): Promise<string> => {
     try {
+      // Verificar se o Supabase está configurado corretamente
+      if (!supabase || !supabase.storage || !supabase.from) {
+        throw new Error('Cliente Supabase não está configurado corretamente');
+      }
+      
+      // Primeiro, verificar se o bucket existe
+      try {
+        const { data: buckets } = await supabase.storage.listBuckets();
+        const bucketExists = buckets?.some(bucket => bucket.name === 'documents');
+        
+        if (!bucketExists) {
+          console.warn("Bucket 'documents' não existe. Tentando criar...");
+          // Em uma aplicação real, você poderia tentar criar o bucket aqui
+          // mas geralmente isso exige permissões de administrador
+          throw new Error("Bucket 'documents' não encontrado no Supabase Storage");
+        }
+      } catch (bucketError) {
+        console.warn("Erro ao verificar buckets:", bucketError);
+        // Continue mesmo com erro, pois o bucket pode existir e apenas a verificação falhou
+      }
+      
       // Gerar um nome de arquivo único que inclui o taskId e um timestamp
       const fileExt = file.name.split('.').pop();
-      const fileName = `${taskId}/${Date.now()}.${fileExt}`;
+      const timestamp = Date.now();
+      const fileName = `${taskId}/${timestamp}_${Math.floor(Math.random() * 10000)}.${fileExt}`;
       const filePath = `daily-missions/${fileName}`;
+      
+      // Primeiro, salvar os metadados localmente para ter um backup
+      try {
+        // Armazenar uma referência local enquanto tentamos carregar o arquivo
+        const localUploads = localStorage.getItem('pmerj_pending_uploads') || '[]';
+        const pendingUploads = JSON.parse(localUploads);
+        pendingUploads.push({
+          id: uuidv4(),
+          task_id: taskId,
+          file_path: filePath,
+          file_name: file.name,
+          uploaded_at: new Date().toISOString(),
+          user_id: userId
+        });
+        localStorage.setItem('pmerj_pending_uploads', JSON.stringify(pendingUploads));
+      } catch (localError) {
+        console.warn("Erro ao salvar upload localmente:", localError);
+        // Continue mesmo com erro no armazenamento local
+      }
       
       // Fazer o upload do arquivo para o Supabase Storage
       const { data, error } = await supabase
@@ -251,29 +321,36 @@ export function DailyMissionsProvider({ children }: { children: ReactNode }) {
         .from('documents')
         .upload(filePath, file, {
           cacheControl: '3600',
-          upsert: false
+          upsert: true
         });
       
       if (error) {
+        console.error("Erro no upload para o Supabase Storage:", error);
         throw error;
       }
       
-      // Registrar o upload na tabela de uploads
-      const { error: insertError } = await supabase
-        .from('task_uploads')
-        .insert({
-          id: uuidv4(),
-          task_id: taskId,
-          file_path: filePath,
-          file_name: file.name,
-          file_size: file.size,
-          file_type: file.type,
-          uploaded_at: new Date().toISOString(),
-          user_id: 'current-user-id' // Este valor deve ser substituído pelo ID real do usuário
-        });
-      
-      if (insertError) {
-        throw insertError;
+      // Registrar o upload na tabela de uploads, se ela existir
+      try {
+        const { error: insertError } = await supabase
+          .from('task_uploads')
+          .insert({
+            id: uuidv4(),
+            task_id: taskId,
+            file_path: filePath,
+            file_name: file.name,
+            file_size: file.size,
+            file_type: file.type,
+            uploaded_at: new Date().toISOString(),
+            user_id: userId
+          });
+        
+        if (insertError) {
+          console.warn("Erro ao salvar metadados do arquivo na tabela task_uploads:", insertError.message);
+          // Continue mesmo em caso de erro, pois o arquivo já foi carregado
+        }
+      } catch (tableError) {
+        console.warn("Erro ao acessar tabela task_uploads:", tableError);
+        // Continue mesmo em caso de erro, pois o arquivo já foi carregado
       }
       
       return filePath;
@@ -283,10 +360,37 @@ export function DailyMissionsProvider({ children }: { children: ReactNode }) {
       throw new Error(errorMessage);
     }
   };
-  
-  // Verificar se o usuário já enviou este documento hoje
+    // Verificar se o usuário já enviou este documento hoje
   const hasUserCompletedTaskToday = async (taskId: string, userId: string): Promise<boolean> => {
     try {
+      // Verificar primeiro no armazenamento local
+      try {
+        const pendingUploads = localStorage.getItem('pmerj_pending_uploads');
+        if (pendingUploads) {
+          const uploads = JSON.parse(pendingUploads);
+          const today = new Date();
+          today.setHours(0, 0, 0, 0);
+          
+          // Verificar se há algum upload para esta tarefa hoje
+          const hasUpload = uploads.some((upload: any) => {
+            const uploadDate = new Date(upload.uploaded_at);
+            return upload.task_id === taskId && 
+                   upload.user_id === userId && 
+                   uploadDate >= today;
+          });
+          
+          if (hasUpload) return true;
+        }
+      } catch (localError) {
+        console.warn("Erro ao verificar uploads locais:", localError);
+      }
+      
+      // Se não encontrou localmente, tente no Supabase
+      if (!supabase || !supabase.from) {
+        console.warn("Cliente Supabase não está disponível");
+        return false;
+      }
+      
       const today = new Date();
       today.setHours(0, 0, 0, 0);
       
@@ -299,7 +403,8 @@ export function DailyMissionsProvider({ children }: { children: ReactNode }) {
         .gte('uploaded_at', today.toISOString());
       
       if (error) {
-        throw error;
+        console.warn("Erro ao verificar uploads na API:", error.message);
+        return false;
       }
       
       return data && data.length > 0;

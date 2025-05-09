@@ -59,9 +59,8 @@ const TaskUpload = ({ task }: { task: DailyTask }) => {
       setFile(e.target.files[0]);
       setUploaded(false);
     }
-  };
-  const handleUpload = async () => {
-    if (!file || !user?.id) {
+  };  const handleUpload = async () => {
+    if (!file) {
       toast({
         title: "Erro ao enviar",
         description: "Por favor, selecione um arquivo para enviar.",
@@ -73,8 +72,11 @@ const TaskUpload = ({ task }: { task: DailyTask }) => {
     setUploading(true);
 
     try {
+      // Obter ID do usuário ou usar um valor padrão se não estiver disponível
+      const userId = user?.id || 'anonymous-user';
+      
       // Upload do arquivo para o Supabase Storage
-      const filePath = await uploadFile(task.id, file);
+      const filePath = await uploadFile(task.id, file, userId);
       
       toast({
         title: "Documento enviado",
@@ -82,12 +84,26 @@ const TaskUpload = ({ task }: { task: DailyTask }) => {
       });
       
       setUploaded(true);
+      
+      // Atualizar status do componente
+      const checkStatus = async () => {
+        const isCompleted = await hasUserCompletedTaskToday(task.id, userId);
+        setUploaded(isCompleted);
+      };
+      
+      // Verificar novamente após alguns segundos para garantir
+      setTimeout(checkStatus, 2000);
     } catch (error) {
       console.error("Erro ao enviar arquivo:", error);
       
+      // Exibir mensagem mais específica, se disponível
+      const errorMessage = error instanceof Error 
+        ? error.message 
+        : "Ocorreu um erro ao enviar o arquivo. Tente novamente.";
+      
       toast({
         title: "Erro ao enviar",
-        description: "Ocorreu um erro ao enviar o arquivo. Tente novamente.",
+        description: errorMessage,
         variant: "destructive",
       });
     } finally {
@@ -183,11 +199,13 @@ const DailyMissions = () => {
   
   // Ajustar para que domingo seja 0 e os outros dias consequentemente
   const adjustedDayNumber = currentDayNumber === 0 ? 6 : currentDayNumber - 1;
+    // Verificar se temos dados de missões
+  const hasMissions = dailyMissions && dailyMissions.length > 0;
   
   // Obter as missões do dia atual (se for dia útil)
-  const todayMissions = dailyMissions.find(
+  const todayMissions = hasMissions ? dailyMissions.find(
     (day) => day.dayNumber === currentDayNumber
-  );
+  ) : null;
   
   // Definir a tab ativa para o dia atual ou para segunda-feira se for final de semana
   const defaultTab = currentDayNumber >= 1 && currentDayNumber <= 5 
@@ -200,6 +218,34 @@ const DailyMissions = () => {
         <div className="flex flex-col items-center justify-center h-[70vh]">
           <RefreshCw className="h-12 w-12 animate-spin text-muted-foreground mb-4" />
           <p className="text-lg text-muted-foreground">Carregando missões diárias...</p>
+        </div>
+      </MainLayout>
+    );
+  }
+  
+  // Se não houver missões após o carregamento, mostrar mensagem
+  if (!hasMissions) {
+    return (
+      <MainLayout>
+        <div className="space-y-6">
+          <div>
+            <h1 className="text-3xl font-bold tracking-tight">Missões Diárias</h1>
+            <p className="text-muted-foreground">
+              Envie os relatórios e documentos necessários para cada dia da semana
+            </p>
+          </div>
+          <Card>
+            <CardContent className="flex flex-col items-center justify-center py-10">
+              <p className="text-lg text-muted-foreground">Nenhuma missão diária encontrada.</p>
+              <Button 
+                className="mt-4"
+                onClick={() => window.location.reload()}
+              >
+                <RefreshCw className="mr-2 h-4 w-4" />
+                Tentar novamente
+              </Button>
+            </CardContent>
+          </Card>
         </div>
       </MainLayout>
     );

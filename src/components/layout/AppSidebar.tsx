@@ -106,12 +106,11 @@ export function AppSidebar() {
                       </NavLink>
                     </SidebarMenuButton>
                   </SidebarMenuItem>
-                  
-                  <SidebarMenuItem>
+                    <SidebarMenuItem>
                     <SidebarMenuButton asChild>
-                      <NavLink to="/admin/settings" className="w-full">
+                      <NavLink to="/admin/diagnostico" className="w-full">
                         <Settings className="h-5 w-5" />
-                        <span>Configurações</span>
+                        <span>Diagnóstico</span>
                       </NavLink>
                     </SidebarMenuButton>
                   </SidebarMenuItem>

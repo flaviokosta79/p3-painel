@@ -1,10 +1,11 @@
-import { useState, FormEvent } from "react";
+import { useState, FormEvent, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { RefreshCw } from "lucide-react";
 import newLogo from "@/assets/5cpa.png"; // Novo logo
 import { toast } from "@/hooks/use-toast";
 
@@ -12,8 +13,19 @@ const Login = () => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [isLoading, setIsLoading] = useState(false);
-  const { login } = useAuth();
+  const [isCheckingSession, setIsCheckingSession] = useState(true);
+  const { login, isAuthenticated } = useAuth();
   const navigate = useNavigate();
+  
+  // Verificar se o usuário já está autenticado ao carregar a página
+  useEffect(() => {
+    if (isAuthenticated) {
+      // Se já estiver autenticado, redirecionar para a página inicial
+      navigate("/", { replace: true });
+    } else {
+      setIsCheckingSession(false);
+    }
+  }, [isAuthenticated, navigate]);
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
@@ -51,11 +63,23 @@ const Login = () => {
       setIsLoading(false);
     }
   };
+  // Mostrar um indicador de carregamento enquanto verifica a sessão
+  if (isCheckingSession) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-b from-pmerj-blue to-pmerj-blue/90 p-4">
+        <div className="flex flex-col items-center">
+          <RefreshCw className="h-12 w-12 animate-spin text-white mb-4" />
+          <p className="text-white text-lg">Verificando sessão...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-b from-pmerj-blue to-pmerj-blue/90 p-4">
       <div className="w-full max-w-md">
-        <div className="mb-8 flex flex-col items-center">          <img
+        <div className="mb-8 flex flex-col items-center">
+          <img
             src={newLogo}
             alt="Logo 5º CPA"
             className="h-24 w-auto"

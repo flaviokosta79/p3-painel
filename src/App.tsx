@@ -22,6 +22,7 @@ import AdminNewUser from "./pages/AdminNewUser";
 import AdminEditUser from "./pages/AdminEditUser";
 import DailyMissions from "./pages/DailyMissions";
 import AdminDailyMissions from "./pages/AdminDailyMissions";
+import SupabaseDiagnostic from "./pages/SupabaseDiagnostic";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -121,11 +122,20 @@ const App = () => (
                     </ProtectedRoute>
                   }
                 />
+                  {/* Rota de diagnóstico */}
+                <Route
+                  path="/admin/diagnostico"
+                  element={
+                    <ProtectedRoute requiredRole="admin">
+                      <SupabaseDiagnostic />
+                    </ProtectedRoute>
+                  }
+                />
                 
                 {/* Rota de fallback */}
                 <Route path="/404" element={<NotFound />} />
                 <Route path="*" element={<Navigate to="/404" replace />} />
-              </Routes>            </BrowserRouter>
+              </Routes></BrowserRouter>
           </TooltipProvider>
           </DailyMissionsProvider>
         </UsersProvider>
