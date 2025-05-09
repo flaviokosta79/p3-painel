@@ -7,6 +7,7 @@ import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider } from "@/hooks/useAuth";
 import { DocumentsProvider } from "@/hooks/useDocuments";
 import { UsersProvider } from "@/hooks/useUsers";
+import { DailyMissionsProvider } from "@/hooks/useDailyMissions";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 
 // Páginas
@@ -19,6 +20,8 @@ import AdminDocumentsList from "./pages/AdminDocumentsList";
 import AdminUsersList from "./pages/AdminUsersList";
 import AdminNewUser from "./pages/AdminNewUser";
 import AdminEditUser from "./pages/AdminEditUser";
+import DailyMissions from "./pages/DailyMissions";
+import AdminDailyMissions from "./pages/AdminDailyMissions";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -28,10 +31,11 @@ const App = () => (
     <AuthProvider>
       <DocumentsProvider>
         <UsersProvider>
-          <TooltipProvider>
-            <Toaster />
-            <Sonner />
-            <BrowserRouter>
+          <DailyMissionsProvider>
+            <TooltipProvider>
+              <Toaster />
+              <Sonner />
+              <BrowserRouter>
               <Routes>
                 {/* Rota pública */}
                 <Route path="/login" element={<Login />} />
@@ -60,12 +64,19 @@ const App = () => (
                       <DocumentsList />
                     </ProtectedRoute>
                   }
-                />
-                <Route
+                />                <Route
                   path="/documents/:id"
                   element={
                     <ProtectedRoute>
                       <DocumentDetail />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/daily-missions"
+                  element={
+                    <ProtectedRoute>
+                      <DailyMissions />
                     </ProtectedRoute>
                   }
                 />
@@ -84,6 +95,13 @@ const App = () => (
                   element={
                     <ProtectedRoute requiredRole="admin">
                       <AdminUsersList />
+                    </ProtectedRoute>
+                  }
+                />                <Route
+                  path="/admin/daily-missions"
+                  element={
+                    <ProtectedRoute requiredRole="admin">
+                      <AdminDailyMissions />
                     </ProtectedRoute>
                   }
                 />
@@ -107,9 +125,9 @@ const App = () => (
                 {/* Rota de fallback */}
                 <Route path="/404" element={<NotFound />} />
                 <Route path="*" element={<Navigate to="/404" replace />} />
-              </Routes>
-            </BrowserRouter>
+              </Routes>            </BrowserRouter>
           </TooltipProvider>
+          </DailyMissionsProvider>
         </UsersProvider>
       </DocumentsProvider>
     </AuthProvider>

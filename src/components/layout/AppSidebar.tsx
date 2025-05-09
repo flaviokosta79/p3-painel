@@ -9,7 +9,7 @@ import {
   SidebarMenuButton,
   SidebarMenuItem
 } from "@/components/ui/sidebar";
-import { Home, File, Users, FileText, Settings, Archive } from "lucide-react";
+import { Home, File, Users, FileText, Settings, Archive, CalendarCheck } from "lucide-react";
 import { NavLink } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 import brazilianFlag from "@/assets/brazilian-flag.svg";
@@ -61,12 +61,20 @@ export function AppSidebar() {
                   </NavLink>
                 </SidebarMenuButton>
               </SidebarMenuItem>
-              
-              <SidebarMenuItem>
+                <SidebarMenuItem>
                 <SidebarMenuButton asChild>
                   <NavLink to="/documents" className="w-full">
                     <Archive className="h-5 w-5" />
                     <span>Meus Documentos</span>
+                  </NavLink>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+              
+              <SidebarMenuItem>
+                <SidebarMenuButton asChild>
+                  <NavLink to="/daily-missions" className="w-full">
+                    <CalendarCheck className="h-5 w-5" />
+                    <span>Missões Diárias</span>
                   </NavLink>
                 </SidebarMenuButton>
               </SidebarMenuItem>
@@ -81,12 +89,20 @@ export function AppSidebar() {
                       </NavLink>
                     </SidebarMenuButton>
                   </SidebarMenuItem>
-                  
-                  <SidebarMenuItem>
+                    <SidebarMenuItem>
                     <SidebarMenuButton asChild>
                       <NavLink to="/admin/users" className="w-full">
                         <Users className="h-5 w-5" />
                         <span>Gestão de Usuários</span>
+                      </NavLink>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                  
+                  <SidebarMenuItem>
+                    <SidebarMenuButton asChild>
+                      <NavLink to="/admin/daily-missions" className="w-full">
+                        <CalendarCheck className="h-5 w-5" />
+                        <span>Gestão de Missões</span>
                       </NavLink>
                     </SidebarMenuButton>
                   </SidebarMenuItem>
