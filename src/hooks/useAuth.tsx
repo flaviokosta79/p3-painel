@@ -22,6 +22,7 @@ interface AuthContextType {
   login: (email: string, password: string) => Promise<boolean>;
   logout: () => void;
   isAuthenticated: boolean;
+  isLoading: boolean; // Nova propriedade para controlar o carregamento
 }
 
 // Mock de dados iniciais
@@ -48,29 +49,49 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
+  const [isLoading, setIsLoading] = useState(true); // Estado para controlar carregamento inicial
   
   useEffect(() => {
     // Verificar se há um usuário no localStorage
-    const storedUser = localStorage.getItem('pmerj_user');
-    if (storedUser) {
-      setUser(JSON.parse(storedUser));
-    }
+    const loadUser = () => {
+      try {
+        const storedUser = localStorage.getItem('pmerj_user');
+        if (storedUser) {
+          setUser(JSON.parse(storedUser));
+        }
+      } catch (error) {
+        console.error('Erro ao carregar usuário do localStorage:', error);
+        localStorage.removeItem('pmerj_user'); // Remove dados inválidos
+      } finally {
+        setIsLoading(false); // Finaliza o carregamento independente do resultado
+      }
+    };
+    
+    loadUser();
   }, []);
   
   const login = async (email: string, password: string): Promise<boolean> => {
-    // Em um cenário real, esta solicitação seria feita a uma API
-    const foundUser = MOCK_USERS.find(
-      (u) => u.email === email && u.password === password
-    );
-    
-    if (foundUser) {
-      const { password, ...userWithoutPassword } = foundUser;
-      setUser(userWithoutPassword);
-      localStorage.setItem('pmerj_user', JSON.stringify(userWithoutPassword));
-      return true;
+    try {
+      // Em um cenário real, esta solicitação seria feita a uma API
+      const foundUser = MOCK_USERS.find(
+        (u) => u.email === email && u.password === password
+      );
+      
+      if (foundUser) {
+        const { password, ...userWithoutPassword } = foundUser;
+        
+        // Armazena no estado e localStorage
+        setUser(userWithoutPassword);
+        localStorage.setItem('pmerj_user', JSON.stringify(userWithoutPassword));
+        
+        return true;
+      }
+      
+      return false;
+    } catch (error) {
+      console.error('Erro durante o login:', error);
+      return false;
     }
-    
-    return false;
   };
   
   const logout = () => {
@@ -83,6 +104,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     login,
     logout,
     isAuthenticated: !!user,
+    isLoading,
   };
   
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
