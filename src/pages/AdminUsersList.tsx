@@ -179,7 +179,7 @@ const AdminUsersList = () => {
                               </DropdownMenuItem>
 
                               {/* Opção para Ativar/Desativar Usuário */}
-                              <Tooltip>
+                              <Tooltip delayDuration={100}>
                                 <AlertDialog>
                                   <TooltipTrigger asChild>
                                     <AlertDialogTrigger asChild>
@@ -191,14 +191,14 @@ const AdminUsersList = () => {
                                         aria-label={user.active ? "Desativar usuário" : "Ativar usuário"}
                                       >
                                         {user.active ? (
-                                          <><UserX className="mr-2 h-4 w-4" /> Desativar</>
+                                          <><UserX className="mr-2 h-4 w-4" /> Desativar</> // GARANTIR TEXTO AQUI
                                         ) : (
-                                          <><UserCheck className="mr-2 h-4 w-4" /> Ativar</>
+                                          <><UserCheck className="mr-2 h-4 w-4" /> Ativar</>  // GARANTIR TEXTO AQUI
                                         )}
                                       </DropdownMenuItem>
                                     </AlertDialogTrigger>
                                   </TooltipTrigger>
-                                  <TooltipContent>
+                                  <TooltipContent side="top" align="center">
                                     <p>{user.role === 'admin' ? (user.active ? "Admin não pode ser desativado" : "Admin está ativo") : (user.active ? "Desativar Usuário" : "Ativar Usuário")}</p>
                                   </TooltipContent>
                                   <AlertDialogContent>

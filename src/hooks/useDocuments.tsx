@@ -1,6 +1,5 @@
-
-import { createContext, useContext, useState, ReactNode, useEffect } from 'react';
-import { useAuth, User } from './useAuth';
+import { createContext, useContext, useState, type ReactNode, useEffect } from 'react';
+import { useAuth, type User } from './useAuth';
 import { toast } from '@/hooks/use-toast';
 
 // Tipos
@@ -14,6 +13,7 @@ export interface Document {
   unitName: string;
   documentDate: string;
   submissionDate: string;
+  deadline?: string;
   status: DocumentStatus;
   fileUrl: string;
   fileName: string;
@@ -185,7 +185,7 @@ export function DocumentsProvider({ children }: { children: ReactNode }) {
       const updatedDocuments = documents.map((doc) => {
         if (doc.id === id) {
           // Se houver um comentário, adicione-o
-          let updatedComments = [...(doc.comments || [])];
+          const updatedComments = [...(doc.comments || [])];
           
           if (comment) {
             updatedComments.push({

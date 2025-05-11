@@ -1,4 +1,3 @@
-
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -7,6 +6,7 @@ import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider } from "@/hooks/useAuth";
 import { DocumentsProvider } from "@/hooks/useDocuments";
 import { UsersProvider } from "@/hooks/useUsers";
+import { DocumentRequirementsProvider } from "@/hooks/DocumentRequirementsProvider";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 
 // Páginas
@@ -28,88 +28,90 @@ const App = () => (
     <AuthProvider>
       <DocumentsProvider>
         <UsersProvider>
-          <TooltipProvider>
-            <Toaster />
-            <Sonner />
-            <BrowserRouter>
-              <Routes>
-                {/* Rota pública */}
-                <Route path="/login" element={<Login />} />
-                
-                {/* Rotas protegidas para todos os usuários */}
-                <Route
-                  path="/"
-                  element={
-                    <ProtectedRoute>
-                      <Index />
-                    </ProtectedRoute>
-                  }
-                />
-                <Route
-                  path="/documents/upload"
-                  element={
-                    <ProtectedRoute>
-                      <DocumentUpload />
-                    </ProtectedRoute>
-                  }
-                />
-                <Route
-                  path="/documents"
-                  element={
-                    <ProtectedRoute>
-                      <DocumentsList />
-                    </ProtectedRoute>
-                  }
-                />
-                <Route
-                  path="/documents/:id"
-                  element={
-                    <ProtectedRoute>
-                      <DocumentDetail />
-                    </ProtectedRoute>
-                  }
-                />
-                
-                {/* Rotas protegidas apenas para administradores */}
-                <Route
-                  path="/admin/documents"
-                  element={
-                    <ProtectedRoute requiredRole="admin">
-                      <AdminDocumentsList />
-                    </ProtectedRoute>
-                  }
-                />
-                <Route
-                  path="/admin/users"
-                  element={
-                    <ProtectedRoute requiredRole="admin">
-                      <AdminUsersList />
-                    </ProtectedRoute>
-                  }
-                />
-                <Route
-                  path="/admin/users/new"
-                  element={
-                    <ProtectedRoute requiredRole="admin">
-                      <AdminNewUser />
-                    </ProtectedRoute>
-                  }
-                />
-                <Route
-                  path="/admin/users/edit/:id"
-                  element={
-                    <ProtectedRoute requiredRole="admin">
-                      <AdminEditUser />
-                    </ProtectedRoute>
-                  }
-                />
-                
-                {/* Rota de fallback */}
-                <Route path="/404" element={<NotFound />} />
-                <Route path="*" element={<Navigate to="/404" replace />} />
-              </Routes>
-            </BrowserRouter>
-          </TooltipProvider>
+          <DocumentRequirementsProvider>
+            <TooltipProvider>
+              <Toaster />
+              <Sonner />
+              <BrowserRouter>
+                <Routes>
+                  {/* Rota pública */}
+                  <Route path="/login" element={<Login />} />
+                  
+                  {/* Rotas protegidas para todos os usuários */}
+                  <Route
+                    path="/"
+                    element={
+                      <ProtectedRoute>
+                        <Index />
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route
+                    path="/documents/upload"
+                    element={
+                      <ProtectedRoute>
+                        <DocumentUpload />
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route
+                    path="/documents"
+                    element={
+                      <ProtectedRoute>
+                        <DocumentsList />
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route
+                    path="/documents/:id"
+                    element={
+                      <ProtectedRoute>
+                        <DocumentDetail />
+                      </ProtectedRoute>
+                    }
+                  />
+                  
+                  {/* Rotas protegidas apenas para administradores */}
+                  <Route
+                    path="/admin/documents"
+                    element={
+                      <ProtectedRoute requiredRole="admin">
+                        <AdminDocumentsList />
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route
+                    path="/admin/users"
+                    element={
+                      <ProtectedRoute requiredRole="admin">
+                        <AdminUsersList />
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route
+                    path="/admin/users/new"
+                    element={
+                      <ProtectedRoute requiredRole="admin">
+                        <AdminNewUser />
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route
+                    path="/admin/users/edit/:id"
+                    element={
+                      <ProtectedRoute requiredRole="admin">
+                        <AdminEditUser />
+                      </ProtectedRoute>
+                    }
+                  />
+                  
+                  {/* Rota de fallback */}
+                  <Route path="/404" element={<NotFound />} />
+                  <Route path="*" element={<Navigate to="/404" replace />} />
+                </Routes>
+              </BrowserRouter>
+            </TooltipProvider>
+          </DocumentRequirementsProvider>
         </UsersProvider>
       </DocumentsProvider>
     </AuthProvider>
