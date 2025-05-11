@@ -1,11 +1,38 @@
 
 import { MainLayout } from "@/components/layout/MainLayout";
 import { DocumentUploadForm } from "@/components/documents/DocumentUploadForm";
+import { DocumentCard } from "@/components/documents/DocumentCard";
 import { useAuth } from "@/hooks/useAuth";
+import { useDocuments } from "@/hooks/useDocuments";
 import { Card, CardContent } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { useNavigate } from "react-router-dom";
+import { ArrowRight } from "lucide-react";
 
 const DocumentUpload = () => {
   const { user } = useAuth();
+  const { documents, loading } = useDocuments();
+  const navigate = useNavigate();
+
+  // Filtrar documentos do usuário atual
+  const userDocuments = documents.filter((doc) => doc.submittedBy.id === user?.id);
+  
+  // Ordenar por data de envio (mais recentes primeiro)
+  const sortedDocuments = [...userDocuments].sort(
+    (a, b) => new Date(b.submissionDate).getTime() - new Date(a.submissionDate).getTime()
+  );
+  
+  // Pegar apenas os 3 mais recentes
+  const recentDocuments = sortedDocuments.slice(0, 3);
+  
+  // Documentos pendentes
+  const pendingDocuments = userDocuments.filter((doc) => doc.status === 'pending');
+
+  // Contar documentos por status
+  const totalDocuments = userDocuments.length;
+  const totalPending = pendingDocuments.length;
+  const totalRevision = userDocuments.filter((doc) => doc.status === 'revision').length;
+  const totalCompleted = userDocuments.filter((doc) => doc.status === 'completed' || doc.status === 'approved').length;
 
   return (
     <MainLayout>
@@ -26,7 +53,7 @@ const DocumentUpload = () => {
               <div className="flex justify-between items-start">
                 <div>
                   <p className="text-sm text-muted-foreground">Total de Documentos</p>
-                  <p className="text-3xl font-bold">0</p>
+                  <p className="text-3xl font-bold">{totalDocuments}</p>
                   <p className="text-xs text-muted-foreground">Documentos registrados no sistema</p>
                 </div>
                 <div className="text-gray-400">
@@ -43,7 +70,7 @@ const DocumentUpload = () => {
               <div className="flex justify-between items-start">
                 <div>
                   <p className="text-sm text-muted-foreground">Pendentes</p>
-                  <p className="text-3xl font-bold">0</p>
+                  <p className="text-3xl font-bold">{totalPending}</p>
                   <p className="text-xs text-muted-foreground">Aguardando análise</p>
                 </div>
                 <div className="text-yellow-500">
@@ -60,7 +87,7 @@ const DocumentUpload = () => {
               <div className="flex justify-between items-start">
                 <div>
                   <p className="text-sm text-muted-foreground">Em Revisão</p>
-                  <p className="text-3xl font-bold">0</p>
+                  <p className="text-3xl font-bold">{totalRevision}</p>
                   <p className="text-xs text-muted-foreground">Precisam de ajustes</p>
                 </div>
                 <div className="text-orange-400">
@@ -77,7 +104,7 @@ const DocumentUpload = () => {
               <div className="flex justify-between items-start">
                 <div>
                   <p className="text-sm text-muted-foreground">Concluídos</p>
-                  <p className="text-3xl font-bold">0</p>
+                  <p className="text-3xl font-bold">{totalCompleted}</p>
                   <p className="text-xs text-muted-foreground">Aprovados ou concluídos</p>
                 </div>
                 <div className="text-green-500">
@@ -90,14 +117,94 @@ const DocumentUpload = () => {
           </Card>
         </div>
         
-        <div className="pb-2 pt-4">
-          <h2 className="text-xl font-bold tracking-tight">Enviar Novo Documento</h2>
-          <p className="text-muted-foreground text-sm">
-            Preencha o formulário abaixo para submeter um novo documento ao sistema.
-          </p>
+        <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
+          {/* Coluna do formulário (3/5) */}
+          <div className="lg:col-span-3 space-y-6">
+            <div className="pb-2 pt-2">
+              <h2 className="text-xl font-bold tracking-tight">Enviar Novo Documento</h2>
+              <p className="text-muted-foreground text-sm">
+                Preencha o formulário abaixo para submeter um novo documento ao sistema.
+              </p>
+            </div>
+            
+            <DocumentUploadForm />
+          </div>
+          
+          {/* Coluna dos documentos recentes (2/5) */}
+          <div className="lg:col-span-2 space-y-6">
+            {/* Documentos pendentes */}
+            <div>
+              <div className="flex justify-between items-center mb-4">
+                <h2 className="text-xl font-bold tracking-tight">Documentos Pendentes</h2>
+                {pendingDocuments.length > 0 && (
+                  <Button 
+                    variant="ghost" 
+                    size="sm" 
+                    className="text-sm text-muted-foreground"
+                    onClick={() => navigate('/documents')}
+                  >
+                    Ver todos
+                    <ArrowRight className="ml-1 h-4 w-4" />
+                  </Button>
+                )}
+              </div>
+              
+              {loading ? (
+                <div className="text-center py-8">Carregando...</div>
+              ) : pendingDocuments.length > 0 ? (
+                <div className="space-y-3">
+                  {pendingDocuments.slice(0, 2).map((doc) => (
+                    <DocumentCard key={doc.id} document={doc} />
+                  ))}
+                </div>
+              ) : (
+                <Card className="bg-muted/50">
+                  <CardContent className="p-6 text-center">
+                    <p className="text-muted-foreground">
+                      Nenhum documento pendente.
+                    </p>
+                  </CardContent>
+                </Card>
+              )}
+            </div>
+            
+            {/* Documentos recentes */}
+            <div>
+              <div className="flex justify-between items-center mb-4">
+                <h2 className="text-xl font-bold tracking-tight">Documentos Recentes</h2>
+                {recentDocuments.length > 0 && (
+                  <Button 
+                    variant="ghost" 
+                    size="sm" 
+                    className="text-sm text-muted-foreground"
+                    onClick={() => navigate('/documents')}
+                  >
+                    Ver todos
+                    <ArrowRight className="ml-1 h-4 w-4" />
+                  </Button>
+                )}
+              </div>
+              
+              {loading ? (
+                <div className="text-center py-8">Carregando...</div>
+              ) : recentDocuments.length > 0 ? (
+                <div className="space-y-3">
+                  {recentDocuments.map((doc) => (
+                    <DocumentCard key={doc.id} document={doc} />
+                  ))}
+                </div>
+              ) : (
+                <Card className="bg-muted/50">
+                  <CardContent className="p-6 text-center">
+                    <p className="text-muted-foreground">
+                      Você ainda não enviou nenhum documento.
+                    </p>
+                  </CardContent>
+                </Card>
+              )}
+            </div>
+          </div>
         </div>
-        
-        <DocumentUploadForm />
       </div>
     </MainLayout>
   );
