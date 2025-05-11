@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { useUsers, UserData } from "@/hooks/useUsers";
 import { MainLayout } from "@/components/layout/MainLayout";
@@ -136,18 +135,18 @@ const AdminUsersList = () => {
                 <Table>
                   <TableCaption>Lista de usuários do sistema</TableCaption>
                   <TableHeader>
-                    <TableRow>{/* Removido o espaço em branco aqui */}
+                    <TableRow>
                       <TableHead>Nome</TableHead>
                       <TableHead>E-mail</TableHead>
                       <TableHead>Perfil</TableHead>
                       <TableHead>Unidade</TableHead>
                       <TableHead>Status</TableHead>
                       <TableHead className="w-[80px]">Ações</TableHead>
-                    </TableRow>{/* Removido o espaço em branco aqui */}
+                    </TableRow>
                   </TableHeader>
                   <TableBody>
                     {sortedUsers.map((user) => (
-                      <TableRow key={user.id}>{/* Removido o espaço em branco aqui */}
+                      <TableRow key={user.id}>
                         <TableCell className="font-medium">{user.name}</TableCell>
                         <TableCell>{user.email}</TableCell>
                         <TableCell>
@@ -214,10 +213,14 @@ const AdminUsersList = () => {
                                 </AlertDialogContent>
                               </AlertDialog>
 
-                              {/* Opção para Excluir Usuário Permanentemente */}
+                              {/* Opção para Excluir Usuário */}
                               <AlertDialog>
                                 <AlertDialogTrigger asChild>
-                                  <DropdownMenuItem onSelect={(e) => e.preventDefault()} className="text-red-600 hover:text-red-700 focus:text-red-700 focus:bg-red-100">
+                                  <DropdownMenuItem 
+                                    onSelect={(e) => e.preventDefault()} 
+                                    disabled={user.role === 'admin'}
+                                    className={user.role === 'admin' ? "text-muted-foreground cursor-not-allowed" : ""}
+                                  >
                                     <Trash className="mr-2 h-4 w-4" />
                                     Excluir
                                   </DropdownMenuItem>
