@@ -38,6 +38,11 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { Badge } from "@/components/ui/badge";
+import { 
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { Plus, Search, MoreHorizontal, Edit, Trash, Check, UserX, UserCheck } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 
@@ -174,44 +179,51 @@ const AdminUsersList = () => {
                               </DropdownMenuItem>
 
                               {/* Opção para Ativar/Desativar Usuário */}
-                              <AlertDialog>
-                                <AlertDialogTrigger asChild>
-                                  <DropdownMenuItem onSelect={(e) => e.preventDefault()}>
-                                    {user.active ? (
-                                      <>
-                                        <UserX className="mr-2 h-4 w-4" />
-                                        Desativar
-                                      </>
-                                    ) : (
-                                      <>
-                                        <UserCheck className="mr-2 h-4 w-4" />
-                                        Ativar
-                                      </>
-                                    )}
-                                  </DropdownMenuItem>
-                                </AlertDialogTrigger>
-                                <AlertDialogContent>
-                                  <AlertDialogHeader>
-                                    <AlertDialogTitle>
-                                      {user.active ? "Desativar Usuário" : "Ativar Usuário"}
-                                    </AlertDialogTitle>
-                                    <AlertDialogDescription>
-                                      {user.active
-                                        ? `Tem certeza que deseja desativar o usuário "${user.name}"? Ele não poderá mais acessar o sistema.`
-                                        : `Tem certeza que deseja ativar o usuário "${user.name}"? Ele poderá acessar o sistema novamente.`}
-                                    </AlertDialogDescription>
-                                  </AlertDialogHeader>
-                                  <AlertDialogFooter>
-                                    <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                                    <AlertDialogAction
-                                      className={user.active ? "bg-orange-500 hover:bg-orange-600" : "bg-green-500 hover:bg-green-600"}
-                                      onClick={() => handleToggleUserStatus(user.id)}
-                                    >
-                                      {user.active ? "Desativar" : "Ativar"}
-                                    </AlertDialogAction>
-                                  </AlertDialogFooter>
-                                </AlertDialogContent>
-                              </AlertDialog>
+                              <Tooltip>
+                                <AlertDialog>
+                                  <TooltipTrigger asChild>
+                                    <AlertDialogTrigger asChild>
+                                      {/* O DropdownMenuItem é o gatilho real */}
+                                      <DropdownMenuItem 
+                                        onSelect={(e) => e.preventDefault()} 
+                                        disabled={user.role === 'admin'} // Desabilita para admin
+                                        className={`flex items-center ${user.role === 'admin' ? "text-muted-foreground cursor-not-allowed" : ""}`} // Estilo para desabilitado e flex
+                                        aria-label={user.active ? "Desativar usuário" : "Ativar usuário"}
+                                      >
+                                        {user.active ? (
+                                          <><UserX className="mr-2 h-4 w-4" /> Desativar</>
+                                        ) : (
+                                          <><UserCheck className="mr-2 h-4 w-4" /> Ativar</>
+                                        )}
+                                      </DropdownMenuItem>
+                                    </AlertDialogTrigger>
+                                  </TooltipTrigger>
+                                  <TooltipContent>
+                                    <p>{user.role === 'admin' ? (user.active ? "Admin não pode ser desativado" : "Admin está ativo") : (user.active ? "Desativar Usuário" : "Ativar Usuário")}</p>
+                                  </TooltipContent>
+                                  <AlertDialogContent>
+                                    <AlertDialogHeader>
+                                      <AlertDialogTitle>
+                                        {user.active ? "Desativar Usuário" : "Ativar Usuário"}
+                                      </AlertDialogTitle>
+                                      <AlertDialogDescription>
+                                        {user.active
+                                          ? `Tem certeza que deseja desativar o usuário "${user.name}"? Ele não poderá mais acessar o sistema.`
+                                          : `Tem certeza que deseja ativar o usuário "${user.name}"? Ele poderá acessar o sistema novamente.`}
+                                      </AlertDialogDescription>
+                                    </AlertDialogHeader>
+                                    <AlertDialogFooter>
+                                      <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                                      <AlertDialogAction
+                                        className={user.active ? "bg-orange-500 hover:bg-orange-600" : "bg-green-500 hover:bg-green-600"}
+                                        onClick={() => handleToggleUserStatus(user.id)}
+                                      >
+                                        {user.active ? "Desativar" : "Ativar"}
+                                      </AlertDialogAction>
+                                    </AlertDialogFooter>
+                                  </AlertDialogContent>
+                                </AlertDialog>
+                              </Tooltip>
 
                               {/* Opção para Excluir Usuário */}
                               <AlertDialog>
