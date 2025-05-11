@@ -15,7 +15,7 @@ import {
   SelectTrigger, 
   SelectValue 
 } from "@/components/ui/select";
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { File, Upload } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
@@ -145,14 +145,9 @@ export function DocumentUploadForm() {
   };
   
   return (
-    <Card className="w-full max-w-2xl mx-auto">
-      <CardHeader>
-        <CardTitle>Envio de Documento</CardTitle>
-        <CardDescription>
-          Preencha o formulário abaixo para enviar um novo documento.
-        </CardDescription>
-      </CardHeader>
-      <CardContent>
+    <Card className="w-full border-t border-x border-b rounded-md">
+      <CardContent className="p-6">
+        <h3 className="text-lg font-medium mb-4">Envio de Documento</h3>
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="space-y-2">
             <Label htmlFor="title">Título do Documento *</Label>
@@ -162,6 +157,7 @@ export function DocumentUploadForm() {
               onChange={(e) => setTitle(e.target.value)}
               required
               placeholder="Ex: Relatório Mensal de Ocorrências"
+              className="bg-white"
             />
           </div>
           
@@ -172,7 +168,7 @@ export function DocumentUploadForm() {
               value={description}
               onChange={(e) => setDescription(e.target.value)}
               placeholder="Breve descrição do conteúdo do documento"
-              className="min-h-[100px]"
+              className="min-h-[80px] bg-white"
             />
           </div>
           
@@ -184,7 +180,7 @@ export function DocumentUploadForm() {
                 onValueChange={setUnitId}
                 required
               >
-                <SelectTrigger>
+                <SelectTrigger className="bg-white">
                   <SelectValue placeholder="Selecione a unidade" />
                 </SelectTrigger>
                 <SelectContent>
@@ -206,13 +202,14 @@ export function DocumentUploadForm() {
                 onChange={(e) => setDocumentDate(e.target.value)}
                 required
                 max={new Date().toISOString().split('T')[0]} // Não permite datas futuras
+                className="bg-white"
               />
             </div>
           </div>
           
           <div className="space-y-2">
             <Label htmlFor="file">Arquivo *</Label>
-            <div className="border rounded-md p-4 bg-muted/20">
+            <div className="border rounded-md p-6 bg-white flex flex-col items-center justify-center">
               {file ? (
                 <div className="flex flex-col items-center p-2 gap-2">
                   <File className="h-10 w-10 text-pmerj-blue" />
@@ -232,11 +229,11 @@ export function DocumentUploadForm() {
                 </div>
               ) : (
                 <div className="flex flex-col items-center p-4 gap-2">
-                  <Upload className="h-10 w-10 text-gray-400" />
-                  <p className="text-center font-medium">
+                  <Upload className="h-12 w-12 text-gray-400" />
+                  <p className="text-center font-medium mt-2">
                     Arraste e solte ou clique para selecionar um arquivo
                   </p>
-                  <p className="text-sm text-gray-500">
+                  <p className="text-sm text-gray-500 mt-1 mb-3">
                     Formatos aceitos: PDF, XLSX, DOCX, JPG, PNG (máximo 10MB)
                   </p>
                   <Input
@@ -264,7 +261,7 @@ export function DocumentUploadForm() {
             )}
           </div>
           
-          <CardFooter className="flex justify-between px-0 pt-4">
+          <div className="flex justify-between pt-4">
             <Button 
               type="button" 
               variant="outline"
@@ -279,7 +276,7 @@ export function DocumentUploadForm() {
             >
               {isLoading ? "Enviando..." : "Enviar Documento"}
             </Button>
-          </CardFooter>
+          </div>
         </form>
       </CardContent>
     </Card>

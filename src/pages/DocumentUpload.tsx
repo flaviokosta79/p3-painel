@@ -1,15 +1,99 @@
 
 import { MainLayout } from "@/components/layout/MainLayout";
 import { DocumentUploadForm } from "@/components/documents/DocumentUploadForm";
+import { useAuth } from "@/hooks/useAuth";
+import { Card, CardContent } from "@/components/ui/card";
 
 const DocumentUpload = () => {
+  const { user } = useAuth();
+
   return (
     <MainLayout>
       <div className="space-y-6">
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight">Enviar Documento</h1>
-          <p className="text-muted-foreground">
-            Preencha o formulário abaixo para enviar um novo documento ao sistema.
+        <div className="pb-2">
+          <h1 className="text-2xl font-bold tracking-tight">
+            Olá, {user?.name || 'Usuário'}
+          </h1>
+          <p className="text-muted-foreground text-sm">
+            Utilize esta página para enviar novos documentos e acompanhar suas pendências.
+          </p>
+        </div>
+        
+        {/* Cards com estatísticas */}
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+          <Card className="border rounded-md">
+            <CardContent className="p-4 pt-4">
+              <div className="flex justify-between items-start">
+                <div>
+                  <p className="text-sm text-muted-foreground">Total de Documentos</p>
+                  <p className="text-3xl font-bold">0</p>
+                  <p className="text-xs text-muted-foreground">Documentos registrados no sistema</p>
+                </div>
+                <div className="text-gray-400">
+                  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" className="h-5 w-5">
+                    <path d="M9 18H15M12 6V14M7 21H17C19.2091 21 21 19.2091 21 17V7C21 4.79086 19.2091 3 17 3H7C4.79086 3 3 4.79086 3 7V17C3 19.2091 4.79086 21 7 21Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                  </svg>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+          
+          <Card className="border rounded-md">
+            <CardContent className="p-4 pt-4">
+              <div className="flex justify-between items-start">
+                <div>
+                  <p className="text-sm text-muted-foreground">Pendentes</p>
+                  <p className="text-3xl font-bold">0</p>
+                  <p className="text-xs text-muted-foreground">Aguardando análise</p>
+                </div>
+                <div className="text-yellow-500">
+                  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" className="h-5 w-5">
+                    <path d="M12 9V13M12 17H12.01M6.99997 3H16.9999L20.9999 7V17C20.9999 18.1046 20.1045 19 18.9999 19H4.99997C3.89539 19 2.99997 18.1046 2.99997 17V7C2.99997 5.89543 3.89539 5 4.99997 5H6.99997V3Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                  </svg>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+          
+          <Card className="border rounded-md">
+            <CardContent className="p-4 pt-4">
+              <div className="flex justify-between items-start">
+                <div>
+                  <p className="text-sm text-muted-foreground">Em Revisão</p>
+                  <p className="text-3xl font-bold">0</p>
+                  <p className="text-xs text-muted-foreground">Precisam de ajustes</p>
+                </div>
+                <div className="text-orange-400">
+                  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" className="h-5 w-5">
+                    <path d="M15.2322 5.23223L18.7677 8.76777M16.7322 3.73223C17.7085 2.75592 19.2914 2.75592 20.2677 3.73223C21.244 4.70854 21.244 6.29146 20.2677 7.26777L6.5 21.0355H3V17.4644L16.7322 3.73223Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                  </svg>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+          
+          <Card className="border rounded-md">
+            <CardContent className="p-4 pt-4">
+              <div className="flex justify-between items-start">
+                <div>
+                  <p className="text-sm text-muted-foreground">Concluídos</p>
+                  <p className="text-3xl font-bold">0</p>
+                  <p className="text-xs text-muted-foreground">Aprovados ou concluídos</p>
+                </div>
+                <div className="text-green-500">
+                  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" className="h-5 w-5">
+                    <path d="M5 13L9 17L19 7M20 12C20 16.4183 16.4183 20 12 20C7.58172 20 4 16.4183 4 12C4 7.58172 7.58172 4 12 4C16.4183 4 20 7.58172 20 12Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                  </svg>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+        
+        <div className="pb-2 pt-4">
+          <h2 className="text-xl font-bold tracking-tight">Enviar Novo Documento</h2>
+          <p className="text-muted-foreground text-sm">
+            Preencha o formulário abaixo para submeter um novo documento ao sistema.
           </p>
         </div>
         
