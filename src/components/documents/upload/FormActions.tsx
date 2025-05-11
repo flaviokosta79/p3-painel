@@ -10,10 +10,11 @@ export function FormActions({ isLoading }: FormActionsProps) {
   const navigate = useNavigate();
 
   return (
-    <div className="flex justify-between pt-4">
+    <div className="flex justify-between pt-4 gap-2">
       <Button 
         type="button" 
         variant="outline"
+        size="sm"
         onClick={() => navigate(-1)}
       >
         Cancelar
@@ -21,9 +22,10 @@ export function FormActions({ isLoading }: FormActionsProps) {
       <Button 
         type="submit"
         className="bg-pmerj-blue text-white hover:bg-pmerj-blue/90"
+        size="sm"
         disabled={isLoading}
       >
-        {isLoading ? "Enviando..." : "Enviar Documento"}
+        {isLoading ? "Enviando..." : "Enviar"}
       </Button>
     </div>
   );

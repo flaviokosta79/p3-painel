@@ -7,7 +7,7 @@ import { useDocuments } from "@/hooks/useDocuments";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { useNavigate } from "react-router-dom";
-import { ArrowRight } from "lucide-react";
+import { ArrowRight, Columns3 } from "lucide-react";
 
 const DocumentUpload = () => {
   const { user } = useAuth();
@@ -117,92 +117,89 @@ const DocumentUpload = () => {
           </Card>
         </div>
         
-        <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
-          {/* Coluna do formulário (3/5) */}
-          <div className="lg:col-span-3 space-y-6">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          {/* Coluna do formulário (1/3) */}
+          <div className="space-y-6">
             <div className="pb-2 pt-2">
               <h2 className="text-xl font-bold tracking-tight">Enviar Novo Documento</h2>
               <p className="text-muted-foreground text-sm">
-                Preencha o formulário abaixo para submeter um novo documento ao sistema.
+                Preencha o formulário abaixo para submeter um novo documento.
               </p>
             </div>
             
             <DocumentUploadForm />
           </div>
           
-          {/* Coluna dos documentos recentes (2/5) */}
-          <div className="lg:col-span-2 space-y-6">
-            {/* Documentos pendentes */}
-            <div>
-              <div className="flex justify-between items-center mb-4">
-                <h2 className="text-xl font-bold tracking-tight">Documentos Pendentes</h2>
-                {pendingDocuments.length > 0 && (
-                  <Button 
-                    variant="ghost" 
-                    size="sm" 
-                    className="text-sm text-muted-foreground"
-                    onClick={() => navigate('/documents')}
-                  >
-                    Ver todos
-                    <ArrowRight className="ml-1 h-4 w-4" />
-                  </Button>
-                )}
-              </div>
-              
-              {loading ? (
-                <div className="text-center py-8">Carregando...</div>
-              ) : pendingDocuments.length > 0 ? (
-                <div className="space-y-3">
-                  {pendingDocuments.slice(0, 2).map((doc) => (
-                    <DocumentCard key={doc.id} document={doc} />
-                  ))}
-                </div>
-              ) : (
-                <Card className="bg-muted/50">
-                  <CardContent className="p-6 text-center">
-                    <p className="text-muted-foreground">
-                      Nenhum documento pendente.
-                    </p>
-                  </CardContent>
-                </Card>
+          {/* Coluna dos documentos pendentes (1/3) */}
+          <div className="space-y-6">
+            <div className="flex justify-between items-center mb-4">
+              <h2 className="text-xl font-bold tracking-tight">Documentos Pendentes</h2>
+              {pendingDocuments.length > 0 && (
+                <Button 
+                  variant="ghost" 
+                  size="sm" 
+                  className="text-sm text-muted-foreground"
+                  onClick={() => navigate('/documents')}
+                >
+                  Ver todos
+                  <ArrowRight className="ml-1 h-4 w-4" />
+                </Button>
               )}
             </div>
             
-            {/* Documentos recentes */}
-            <div>
-              <div className="flex justify-between items-center mb-4">
-                <h2 className="text-xl font-bold tracking-tight">Documentos Recentes</h2>
-                {recentDocuments.length > 0 && (
-                  <Button 
-                    variant="ghost" 
-                    size="sm" 
-                    className="text-sm text-muted-foreground"
-                    onClick={() => navigate('/documents')}
-                  >
-                    Ver todos
-                    <ArrowRight className="ml-1 h-4 w-4" />
-                  </Button>
-                )}
+            {loading ? (
+              <div className="text-center py-8">Carregando...</div>
+            ) : pendingDocuments.length > 0 ? (
+              <div className="space-y-3">
+                {pendingDocuments.slice(0, 3).map((doc) => (
+                  <DocumentCard key={doc.id} document={doc} />
+                ))}
               </div>
-              
-              {loading ? (
-                <div className="text-center py-8">Carregando...</div>
-              ) : recentDocuments.length > 0 ? (
-                <div className="space-y-3">
-                  {recentDocuments.map((doc) => (
-                    <DocumentCard key={doc.id} document={doc} />
-                  ))}
-                </div>
-              ) : (
-                <Card className="bg-muted/50">
-                  <CardContent className="p-6 text-center">
-                    <p className="text-muted-foreground">
-                      Você ainda não enviou nenhum documento.
-                    </p>
-                  </CardContent>
-                </Card>
+            ) : (
+              <Card className="bg-muted/50">
+                <CardContent className="p-6 text-center">
+                  <p className="text-muted-foreground">
+                    Nenhum documento pendente.
+                  </p>
+                </CardContent>
+              </Card>
+            )}
+          </div>
+          
+          {/* Coluna dos documentos recentes (1/3) */}
+          <div className="space-y-6">
+            <div className="flex justify-between items-center mb-4">
+              <h2 className="text-xl font-bold tracking-tight">Documentos Recentes</h2>
+              {recentDocuments.length > 0 && (
+                <Button 
+                  variant="ghost" 
+                  size="sm" 
+                  className="text-sm text-muted-foreground"
+                  onClick={() => navigate('/documents')}
+                >
+                  Ver todos
+                  <ArrowRight className="ml-1 h-4 w-4" />
+                </Button>
               )}
             </div>
+            
+            {loading ? (
+              <div className="text-center py-8">Carregando...</div>
+            ) : recentDocuments.length > 0 ? (
+              <div className="space-y-3">
+                {recentDocuments.map((doc) => (
+                  <DocumentCard key={doc.id} document={doc} />
+                ))}
+              </div>
+            ) : (
+              <Card className="bg-muted/50">
+                <CardContent className="p-6 text-center">
+                  <p className="text-muted-foreground">
+                    Você ainda não enviou nenhum documento.
+                  </p>
+                </CardContent>
+              </Card>
+            )}
           </div>
         </div>
       </div>
