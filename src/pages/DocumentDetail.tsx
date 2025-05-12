@@ -96,8 +96,7 @@ const DocumentDetail = () => {
         return "Desconhecido";
     }
   };
-  
-  const formatDate = (dateString: string) => {
+    const formatDate = (dateString: string) => {
     const date = new Date(dateString);
     return new Intl.DateTimeFormat("pt-BR", {
       day: "2-digit",
@@ -196,7 +195,7 @@ const DocumentDetail = () => {
                       <div>
                         <h3 className="font-medium text-sm">Data do Documento</h3>
                         <p className="mt-1 text-gray-700">
-                          {new Date(document.documentDate).toLocaleDateString("pt-BR")}
+                          {new Date(document.documentDate).toLocaleDateString("pt-BR", { day: '2-digit', month: '2-digit', year: 'numeric' })}
                         </p>
                       </div>
                       
@@ -208,7 +207,7 @@ const DocumentDetail = () => {
                       <div>
                         <h3 className="font-medium text-sm">Data de Envio</h3>
                         <p className="mt-1 text-gray-700">
-                          {new Date(document.submissionDate).toLocaleDateString("pt-BR")}
+                          {new Date(document.submissionDate).toLocaleDateString("pt-BR", { day: '2-digit', month: '2-digit', year: 'numeric' })}
                         </p>
                       </div>
                     </div>

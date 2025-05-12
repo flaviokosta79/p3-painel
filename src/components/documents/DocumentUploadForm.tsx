@@ -5,6 +5,7 @@ import { FileUploader } from "./upload/FileUploader";
 import { DocumentFormFields } from "./upload/DocumentFormFields";
 import { FormActions } from "./upload/FormActions";
 import { useDocumentForm } from "./upload/useDocumentForm";
+import { formatDate } from "@/lib/utils";
 
 export function DocumentUploadForm() {
   const {

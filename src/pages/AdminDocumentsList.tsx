@@ -1,4 +1,4 @@
-import { useState, type FormEvent } from "react";
+import { useState, type FormEvent, useEffect } from "react";
 import { useDocuments, type DocumentStatus } from "@/hooks/useDocuments";
 import { useUsers } from "@/hooks/useUsers";
 import { useAuth } from "@/hooks/useAuth"; 
@@ -6,6 +6,8 @@ import { useDocumentRequirementsContext } from "@/hooks/DocumentRequirementsProv
 import type { NewDocumentRequirement } from "@/hooks/useDocumentRequirements";
 import { MainLayout } from "@/components/layout/MainLayout";
 import { DocumentCard } from "@/components/documents/DocumentCard"; 
+import { DocumentActionsRow } from "@/components/documents/DocumentActionsRow"; // Novo componente importado
+import { formatDate } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { 
@@ -51,13 +53,42 @@ import { Calendar } from "@/components/ui/calendar";
 import { format } from "date-fns"; 
 import { ptBR } from "date-fns/locale"; 
 import { cn } from "@/lib/utils"; 
+import { Badge } from "@/components/ui/badge"; // Importação adicionada
 
 const AdminDocumentsList = () => {
   const { documents, loading: loadingDocuments, addDocument } = useDocuments(); 
   const { getUnits, users } = useUsers(); 
+  
+  // Garantir que estamos usando as unidades corretas
+  useEffect(() => {
+    // Atualizar o localStorage com as unidades corretas ao carregar a página
+    const correctUnits = [
+      { id: '1', name: '10º BPM' },
+      { id: '2', name: '28º BPM' },
+      { id: '3', name: '33º BPM' },
+      { id: '4', name: '37º BPM' },
+      { id: '5', name: '2ª CIPM' },
+    ];
+    localStorage.setItem('pmerj_units', JSON.stringify(correctUnits));
+  }, []);
+  
   const units = getUnits();
   const { toast } = useToast();
   const { user: adminUser } = useAuth(); 
+
+  // Correção das unidades no localStorage
+  useEffect(() => {
+    // Configurar as unidades corretas
+    const correctUnits = [
+      { id: '1', name: '10º BPM' },
+      { id: '2', name: '28º BPM' },
+      { id: '3', name: '33º BPM' },
+      { id: '4', name: '37º BPM' },
+      { id: '5', name: '2ª CIPM' },
+    ];
+    // Atualiza o localStorage com as unidades corretas
+    localStorage.setItem('pmerj_units', JSON.stringify(correctUnits));
+  }, []);
 
   const {
     documentRequirements,
@@ -87,6 +118,32 @@ const AdminDocumentsList = () => {
   const [unitFilter, setUnitFilter] = useState("all");
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [dateFilter, setDateFilter] = useState<string>("all");
+  
+  // Funções auxiliares para formatação e visualização
+  const getStatusColor = (status: DocumentStatus): string => {
+    switch (status) {
+      case "pending": return "bg-yellow-500";
+      case "approved": return "bg-green-500";
+      case "revision": return "bg-orange-500";
+      case "completed": return "bg-blue-500";
+      default: return "bg-gray-500";
+    }
+  };
+  
+  const getStatusText = (status: DocumentStatus): string => {
+    switch (status) {
+      case "pending": return "Pendente";
+      case "approved": return "Aprovado";
+      case "revision": return "Em Revisão";
+      case "completed": return "Concluído";
+      default: return "Desconhecido";
+    }
+  };
+  
+  const formatDate = (dateString: string) => {
+    const date = new Date(dateString);
+    return date.toLocaleDateString("pt-BR", { day: '2-digit', month: '2-digit', year: 'numeric' });
+  };
   
   const filteredDocuments = documents.filter((doc) => {
     if (unitFilter !== "all" && doc.unitId !== unitFilter) {
@@ -148,7 +205,7 @@ const AdminDocumentsList = () => {
         doc.title,
         doc.unitName,
         doc.status,
-        new Date(doc.submissionDate).toLocaleDateString("pt-BR"),
+        new Date(doc.submissionDate).toLocaleDateString("pt-BR", { day: '2-digit', month: '2-digit', year: 'numeric' }),
         doc.submittedBy.name,
       ]),
     ]
@@ -285,8 +342,8 @@ const AdminDocumentsList = () => {
         description: docDescription.trim() || undefined,
         unitId: unit.id,
         unitName: unit.name,
-        documentDate: format(docDate as Date, "yyyy-MM-dd"),
-        deadline: deadlineDate ? format(deadlineDate, "yyyy-MM-dd") : undefined,
+        documentDate: format(docDate as Date, "dd/MM/yyyy"),
+        deadline: deadlineDate ? format(deadlineDate, "dd/MM/yyyy") : undefined,
       };
       
       // Adiciona informações do arquivo apenas se um arquivo foi selecionado
@@ -349,80 +406,73 @@ const AdminDocumentsList = () => {
   return (
     <MainLayout>
       <div className="space-y-8">
-        <Card>
-          <CardHeader>
-            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-              <div>
-                <CardTitle className="text-2xl">Gestão de Documentos Enviados</CardTitle>
-                <CardDescription>
-                  Visualize e gerencie todos os documentos enviados pelos usuários.
-                </CardDescription>
-              </div>
-              <Button onClick={exportToCSV}>
-                <Download className="mr-2 h-4 w-4" />
-                Exportar Dados
-              </Button>
-            </div>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-4">
-              <div className="flex flex-col sm:flex-row gap-4">
-                <div className="relative flex-1">
-                  <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-                  <Input
-                    placeholder="Pesquisar documentos..."
-                    className="pl-8"
-                    value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
-                  />
-                </div>
-                
-                <Select value={unitFilter} onValueChange={setUnitFilter}>
-                  <SelectTrigger className="w-full sm:w-[200px]">
-                    <SelectValue placeholder="Filtrar por unidade" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">Todas as Unidades</SelectItem>
-                    {units.map((unit) => (
-                      <SelectItem key={unit.id} value={unit.id}>
-                        {unit.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              
-              <div className="flex flex-col sm:flex-row gap-4">
-                <Tabs 
-                  defaultValue="all" 
-                  className="w-full" 
-                  value={statusFilter} 
-                  onValueChange={setStatusFilter}
-                >
-                  <TabsList className="grid grid-cols-5 w-full">
-                    <TabsTrigger value="all">Todos</TabsTrigger>
-                    <TabsTrigger value="pending">Pendentes</TabsTrigger>
-                    <TabsTrigger value="revision">Em Revisão</TabsTrigger>
-                    <TabsTrigger value="approved">Aprovados</TabsTrigger>
-                    <TabsTrigger value="completed">Concluídos</TabsTrigger>
-                  </TabsList>
-                </Tabs>
-                
-                <Select value={dateFilter} onValueChange={setDateFilter}>
-                  <SelectTrigger className="w-full sm:w-[200px]">
-                    <SelectValue placeholder="Filtrar por data" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">Todas as Datas</SelectItem>
-                    <SelectItem value="today">Hoje</SelectItem>
-                    <SelectItem value="thisWeek">Esta Semana</SelectItem>
-                    <SelectItem value="thisMonth">Este Mês</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
+          <div>
+            <h1 className="text-3xl font-bold tracking-tight">Documentos</h1>
+            <p className="text-muted-foreground">
+              Visualize e gerencie documentos no sistema
+            </p>
+          </div>
+          
+          <div className="flex flex-col sm:flex-row gap-2">
+            <Button onClick={exportToCSV} variant="outline" size="sm">
+              <Download className="mr-2 h-4 w-4" />
+              Exportar CSV
+            </Button>
+          </div>
+        </div>
+        
+        <div className="flex flex-col sm:flex-row gap-4 mb-6">
+          <div className="relative flex-1">
+            <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+            <Input
+              placeholder="Pesquisar documentos..."
+              className="pl-8"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+            />
+          </div>
+          
+          <Select value={unitFilter} onValueChange={setUnitFilter}>
+            <SelectTrigger className="w-full sm:w-[200px]">
+              <SelectValue placeholder="Filtrar por unidade" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Todas as Unidades</SelectItem>
+              {units.map((unit) => (
+                <SelectItem key={unit.id} value={unit.id}>
+                  {unit.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+        
+        <div className="flex flex-col sm:flex-row gap-4 mb-6">
+          <Tabs 
+            defaultValue="all" 
+            className="w-full" 
+            value={statusFilter} 
+            onValueChange={setStatusFilter}
+          >
+            <TabsList className="grid grid-cols-2 w-full">
+              <TabsTrigger value="all">Todos</TabsTrigger>
+              <TabsTrigger value="completed">Concluídos</TabsTrigger>
+            </TabsList>
+          </Tabs>
+          
+          <Select value={dateFilter} onValueChange={setDateFilter}>
+            <SelectTrigger className="w-full sm:w-[200px]">
+              <SelectValue placeholder="Filtrar por data" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Todas as Datas</SelectItem>
+              <SelectItem value="today">Hoje</SelectItem>
+              <SelectItem value="thisWeek">Esta Semana</SelectItem>
+              <SelectItem value="thisMonth">Este Mês</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
 
         {/* Card para Criar novo documento */}
         <Card>
@@ -505,7 +555,7 @@ const AdminDocumentsList = () => {
                           )}
                         >
                           <CalendarIcon className="mr-2 h-4 w-4" />
-                          {docDate ? format(docDate, "PPP", { locale: ptBR }) : <span>Escolha uma data</span>}
+                          {docDate ? format(docDate, "dd/MM/yyyy", { locale: ptBR }) : <span>Escolha uma data</span>}
                         </Button>
                       </PopoverTrigger>
                       <PopoverContent className="w-auto p-0">
@@ -567,7 +617,7 @@ const AdminDocumentsList = () => {
                           )}
                         >
                           <CalendarIcon className="mr-2 h-4 w-4" />
-                          {deadlineDate ? format(deadlineDate, "PPP", { locale: ptBR }) : <span>Escolha uma data</span>}
+                          {deadlineDate ? format(deadlineDate, "dd/MM/yyyy", { locale: ptBR }) : <span>Escolha uma data</span>}
                         </Button>
                       </PopoverTrigger>
                       <PopoverContent className="w-auto p-0">
@@ -619,11 +669,47 @@ const AdminDocumentsList = () => {
         {loadingDocuments ? (
           <div className="py-8 text-center">Carregando documentos...</div>
         ) : sortedDocuments.length > 0 ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {sortedDocuments.map((doc) => (
-              <DocumentCard key={doc.id} document={doc} />
-            ))}
-          </div>
+          <Card>
+            <CardContent className="pt-6">
+              <div className="rounded-md border">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Documento</TableHead>
+                      <TableHead>Unidade</TableHead>
+                      <TableHead>Enviado por</TableHead>
+                      <TableHead>Status</TableHead>
+                      <TableHead>Data</TableHead>
+                      <TableHead className="text-right">Ações</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {sortedDocuments.map((doc) => (
+                      <TableRow key={doc.id}>
+                        <TableCell>
+                          <div className="font-medium">{doc.title}</div>
+                          {doc.description && (
+                            <div className="text-sm text-muted-foreground line-clamp-1">{doc.description}</div>
+                          )}
+                        </TableCell>
+                        <TableCell>{doc.unitName}</TableCell>
+                        <TableCell>{doc.submittedBy.name}</TableCell>
+                        <TableCell>
+                          <Badge className={getStatusColor(doc.status).replace('bg-', 'bg-opacity-80 text-white bg-')}>
+                            {getStatusText(doc.status)}
+                          </Badge>
+                        </TableCell>
+                        <TableCell>{formatDate(doc.submissionDate)}</TableCell>
+                        <TableCell className="text-right">
+                          <DocumentActionsRow document={doc} isAdmin={true} />
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+            </CardContent>
+          </Card>
         ) : (
           <Card>
             <CardContent className="py-10 text-center">

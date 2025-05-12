@@ -15,6 +15,7 @@ import Index from "./pages/Index";
 import DocumentUpload from "./pages/DocumentUpload";
 import DocumentsList from "./pages/DocumentsList";
 import DocumentDetail from "./pages/DocumentDetail";
+import DocumentEdit from "./pages/DocumentEdit";
 import AdminDocumentsList from "./pages/AdminDocumentsList";
 import AdminUsersList from "./pages/AdminUsersList";
 import AdminNewUser from "./pages/AdminNewUser";
@@ -67,6 +68,14 @@ const App = () => (
                     element={
                       <ProtectedRoute>
                         <DocumentDetail />
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route
+                    path="/documents/edit/:id"
+                    element={
+                      <ProtectedRoute>
+                        <DocumentEdit />
                       </ProtectedRoute>
                     }
                   />

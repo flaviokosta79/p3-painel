@@ -56,8 +56,7 @@ const Index = () => {
             Bem-vindo ao Sistema de Gestão Documental do 5º CPA
           </p>
         </div>
-        
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-3 gap-4">
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">
@@ -82,19 +81,6 @@ const Index = () => {
               <div className="text-2xl font-bold">{stats.pending}</div>
               <p className="text-xs text-muted-foreground">
                 Aguardando análise
-              </p>
-            </CardContent>
-          </Card>
-          
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Em Revisão</CardTitle>
-              <FilePenLine className="h-4 w-4 text-orange-500" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{stats.revision}</div>
-              <p className="text-xs text-muted-foreground">
-                Precisam de ajustes
               </p>
             </CardContent>
           </Card>
@@ -169,8 +155,7 @@ const Index = () => {
                   </div>
                 </Link>
               </Card>
-              
-              <Card className="transition-colors hover:bg-muted/50">
+                <Card className="transition-colors hover:bg-muted/50">
                 <Link to="/documents" className="block p-6">
                   <div className="flex items-center space-x-4">
                     <div className="bg-primary/10 p-2 rounded-full">
@@ -185,24 +170,6 @@ const Index = () => {
                   </div>
                 </Link>
               </Card>
-              
-              {isAdmin && (
-                <Card className="transition-colors hover:bg-muted/50">
-                  <Link to="/admin/users" className="block p-6">
-                    <div className="flex items-center space-x-4">
-                      <div className="bg-primary/10 p-2 rounded-full">
-                        <Users className="h-6 w-6 text-primary" />
-                      </div>
-                      <div>
-                        <CardTitle className="text-base">Gerenciar Usuários</CardTitle>
-                        <CardDescription>
-                          Adicione e edite usuários do sistema
-                        </CardDescription>
-                      </div>
-                    </div>
-                  </Link>
-                </Card>
-              )}
             </div>
           </div>
         </div>

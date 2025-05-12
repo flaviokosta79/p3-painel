@@ -11,11 +11,12 @@ export function useDocumentForm() {
   const { addDocument } = useDocuments();
   const { getUnits } = useUsers();
   const navigate = useNavigate();
-  
   // Estados do formulário
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
-  const [unitId, setUnitId] = useState(user?.unit.id || "");
+  // Para usuários normais, o unitId padrão será "cpa-admin"
+  const [unitId, setUnitId] = useState(user?.role === 'admin' ? (user?.unit.id || "") : "cpa-admin");
+  // A data usa o formato yyyy-MM-dd internamente para compatibilidade com o input type="date"
   const [documentDate, setDocumentDate] = useState("");
   const [file, setFile] = useState<File | null>(null);
   const [isLoading, setIsLoading] = useState(false);
@@ -42,19 +43,29 @@ export function useDocumentForm() {
       setIsLoading(true);
       
       // Em um cenário real, faríamos upload do arquivo para um servidor
-      // Aqui estamos simulando isso
+      // Aqui estamos simulando isso      // Dados necessários para criar o documento
+      // Define o tipo explicitamente para evitar erro de "any" implícito
+      let unitData: { id: string; name: string; };
       
-      // Dados necessários para criar o documento
-      const units = getUnits();
-      const unitData = units.find((u) => u.id === unitId);
-      
-      if (!unitData) {
-        toast({
-          title: "Erro",
-          description: "Unidade não encontrada.",
-          variant: "destructive",
-        });
-        return;
+      // Verificar se é uma submissão para o 5º CPA (Admin)
+      if (unitId === "cpa-admin") {
+        unitData = {
+          id: "cpa-admin",
+          name: "5º CPA (Admin)"
+        };
+      } else {
+        const units = getUnits();
+        const foundUnit = units.find((u) => u.id === unitId);
+        
+        if (!foundUnit) {
+          toast({
+            title: "Erro",
+            description: "Unidade não encontrada.",
+            variant: "destructive",
+          });
+          return;
+        }
+        unitData = foundUnit;
       }
       
       // Criar novo documento

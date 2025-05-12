@@ -43,6 +43,8 @@ interface DocumentsContextType {
   getUserDocuments: (userId: string) => Document[];
   getUnitDocuments: (unitId: string) => Document[];
   getAllDocuments: () => Document[];
+  deleteDocument: (id: string) => Promise<boolean>; // Added
+  updateDocument: (id: string, updatedDoc: Partial<Omit<Document, 'id' | 'submissionDate' | 'submittedBy' | 'status'>>) => Promise<boolean>; // Added
 }
 
 // Lista vazia para armazenar documentos
@@ -172,6 +174,58 @@ export function DocumentsProvider({ children }: { children: ReactNode }) {
     }
   };
   
+  const deleteDocument = async (id: string) => {
+    try {
+      const updatedDocuments = documents.filter(doc => doc.id !== id);
+      setDocuments(updatedDocuments);
+      localStorage.setItem('pmerj_documents', JSON.stringify(updatedDocuments));
+      toast({
+        title: "Documento excluído",
+        description: "O documento foi excluído com sucesso.",
+      });
+      return true;
+    } catch (error) {
+      console.error('Erro ao excluir documento:', error);
+      toast({
+        title: "Erro ao excluir documento",
+        description: "Ocorreu um erro ao excluir o documento. Tente novamente.",
+        variant: "destructive",
+      });
+      return false;
+    }
+  };
+
+  const updateDocument = async (id: string, updatedDocData: Partial<Omit<Document, 'id' | 'submissionDate' | 'submittedBy' | 'status'>>) => {
+    if (!user) return false;
+    try {
+      const updatedDocuments = documents.map((doc) => {
+        if (doc.id === id) {
+          return {
+            ...doc,
+            ...updatedDocData,
+            // Mantém o status e informações de envio originais, a menos que explicitamente alterados em outra função
+          };
+        }
+        return doc;
+      });
+      setDocuments(updatedDocuments);
+      localStorage.setItem('pmerj_documents', JSON.stringify(updatedDocuments));
+      toast({
+        title: "Documento atualizado",
+        description: "O documento foi atualizado com sucesso.",
+      });
+      return true;
+    } catch (error) {
+      console.error('Erro ao atualizar documento:', error);
+      toast({
+        title: "Erro ao atualizar documento",
+        description: "Ocorreu um erro ao atualizar o documento. Tente novamente.",
+        variant: "destructive",
+      });
+      return false;
+    }
+  };
+  
   const addComment = async (documentId: string, text: string) => {
     if (!user || !text.trim()) return false;
     
@@ -242,9 +296,28 @@ export function DocumentsProvider({ children }: { children: ReactNode }) {
     getUserDocuments,
     getUnitDocuments,
     getAllDocuments,
+    deleteDocument, // Added
+    updateDocument  // Added
   };
   
-  return <DocumentsContext.Provider value={value}>{children}</DocumentsContext.Provider>;
+  return (
+    <DocumentsContext.Provider 
+      value={{ 
+        documents, 
+        loading, 
+        addDocument, 
+        updateDocumentStatus, 
+        addComment, 
+        getUserDocuments, 
+        getUnitDocuments, 
+        getAllDocuments,
+        deleteDocument, // Added
+        updateDocument  // Added
+      }}
+    >
+      {children}
+    </DocumentsContext.Provider>
+  );
 }
 
 export const useDocuments = () => {

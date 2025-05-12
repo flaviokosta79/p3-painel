@@ -1,10 +1,20 @@
-
 import { useState } from "react";
 import { useAuth } from "@/hooks/useAuth";
-import { useDocuments, DocumentStatus } from "@/hooks/useDocuments";
+import { useDocuments } from "@/hooks/useDocuments";
+import type { DocumentStatus } from "@/hooks/useDocuments";
 import { MainLayout } from "@/components/layout/MainLayout";
-import { DocumentCard } from "@/components/documents/DocumentCard";
-import { Card, CardContent } from "@/components/ui/card";
+import { DocumentActionsRow } from "@/components/documents/DocumentActionsRow"; // Adicionar importação
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { 
+  Table,
+  TableBody,
+  TableCaption,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import { Badge } from "@/components/ui/badge";
 import { 
   Select, 
   SelectContent, 
@@ -24,6 +34,31 @@ const DocumentsList = () => {
   
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
+  
+  // Funções auxiliares para formatação e visualização
+  const getStatusColor = (status: DocumentStatus): string => {
+    switch (status) {
+      case "pending": return "bg-yellow-500";
+      case "approved": return "bg-green-500";
+      case "revision": return "bg-orange-500";
+      case "completed": return "bg-blue-500";
+      default: return "bg-gray-500";
+    }
+  };
+  
+  const getStatusText = (status: DocumentStatus): string => {
+    switch (status) {
+      case "pending": return "Pendente";
+      case "approved": return "Aprovado";
+      case "revision": return "Em Revisão";
+      case "completed": return "Concluído";
+      default: return "Desconhecido";
+    }
+  };
+    const formatDate = (dateString: string) => {
+    const date = new Date(dateString);
+    return date.toLocaleDateString("pt-BR", { day: '2-digit', month: '2-digit', year: 'numeric' });
+  };
   
   // Filtrar documentos por usuário atual
   const userDocuments = documents.filter(
@@ -84,8 +119,7 @@ const DocumentsList = () => {
               onChange={(e) => setSearchTerm(e.target.value)}
             />
           </div>
-          
-          <Select 
+            <Select 
             value={statusFilter} 
             onValueChange={setStatusFilter}
           >
@@ -94,9 +128,6 @@ const DocumentsList = () => {
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">Todos</SelectItem>
-              <SelectItem value="pending">Pendente</SelectItem>
-              <SelectItem value="approved">Aprovado</SelectItem>
-              <SelectItem value="revision">Em Revisão</SelectItem>
               <SelectItem value="completed">Concluído</SelectItem>
             </SelectContent>
           </Select>
@@ -105,11 +136,49 @@ const DocumentsList = () => {
         {loading ? (
           <div className="py-8 text-center">Carregando documentos...</div>
         ) : sortedDocuments.length > 0 ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {sortedDocuments.map((doc) => (
-              <DocumentCard key={doc.id} document={doc} />
-            ))}
-          </div>
+          <Card>
+            <CardHeader>
+              <CardTitle>Meus documentos</CardTitle>
+              <CardDescription>Lista de todos os seus documentos submetidos ao sistema</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="rounded-md border">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Documento</TableHead>
+                      <TableHead>Unidade</TableHead>
+                      <TableHead>Status</TableHead>
+                      <TableHead>Data de Envio</TableHead>
+                      <TableHead className="text-right">Ações</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {sortedDocuments.map((doc) => (
+                      <TableRow key={doc.id}>
+                        <TableCell>
+                          <div className="font-medium">{doc.title}</div>
+                          {doc.description && (
+                            <div className="text-sm text-muted-foreground line-clamp-1">{doc.description}</div>
+                          )}
+                        </TableCell>
+                        <TableCell>{doc.unitName}</TableCell>
+                        <TableCell>
+                          <Badge className={getStatusColor(doc.status).replace('bg-', 'bg-opacity-80 text-white bg-')}>
+                            {getStatusText(doc.status)}
+                          </Badge>
+                        </TableCell>
+                        <TableCell>{formatDate(doc.submissionDate)}</TableCell>
+                        <TableCell className="text-right">
+                          <DocumentActionsRow document={doc} />
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+            </CardContent>
+          </Card>
         ) : (
           <Card>
             <CardContent className="py-10 text-center">

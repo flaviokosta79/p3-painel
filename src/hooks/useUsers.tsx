@@ -36,6 +36,11 @@ const defaultUnits: Unit[] = [
   { id: '5', name: '2ª CIPM' },
 ];
 
+// Garantir que as unidades corretas estejam sempre no localStorage
+(function initializeUnits() {
+  localStorage.setItem('pmerj_units', JSON.stringify(defaultUnits));
+})();
+
 const UsersContext = createContext<UsersContextType | undefined>(undefined);
 
 export function UsersProvider({ children }: { children: ReactNode }) {
@@ -229,17 +234,10 @@ export function UsersProvider({ children }: { children: ReactNode }) {
   const getUserById = (id: string) => {
     return users.find((user) => user.id === id);
   };
-  
-  const getUnits = () => {
-    // Retorna as unidades padrão (em uma implementação real, isso viria de uma API)
-    const storedUnits = localStorage.getItem('pmerj_units');
-    if (storedUnits) {
-      return JSON.parse(storedUnits);
-    } else {
-      // Se não houver unidades no localStorage, usa as unidades padrão e salva
-      localStorage.setItem('pmerj_units', JSON.stringify(defaultUnits));
-      return defaultUnits;
-    }
+    const getUnits = () => {
+    // Sempre salvar e retornar as unidades corretas para garantir consistência
+    localStorage.setItem('pmerj_units', JSON.stringify(defaultUnits));
+    return defaultUnits;
   };
   
   const value = {
