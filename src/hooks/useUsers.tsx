@@ -7,6 +7,7 @@ export interface UserData {
   id: string;
   name: string;
   email: string;
+  password?: string; // Campo opcional para senha
   role: UserRole;
   unit: Unit;
   createdAt: string;
@@ -26,13 +27,13 @@ interface UsersContextType {
   getUnits: () => Unit[];
 }
 
-// Lista vazia para armazenar unidades
+// Lista de unidades padrão
 const defaultUnits: Unit[] = [
-  { id: '1', name: 'Comando Central' },
-  { id: '2', name: '10º BPM' },
-  { id: '3', name: '12º BPM' },
-  { id: '4', name: '15º BPM' },
-  { id: '5', name: '22º BPM' },
+  { id: '1', name: '10º BPM' },
+  { id: '2', name: '28º BPM' },
+  { id: '3', name: '33º BPM' },
+  { id: '4', name: '37º BPM' },
+  { id: '5', name: '2ª CIPM' },
 ];
 
 const UsersContext = createContext<UsersContextType | undefined>(undefined);
@@ -73,11 +74,22 @@ export function UsersProvider({ children }: { children: ReactNode }) {
         return false;
       }
       
+      // Extrair a senha do userData antes de criar o novo usuário
+      const { password, ...userDataWithoutPassword } = userData;
+      
       const newUser: UserData = {
-        ...userData,
+        ...userDataWithoutPassword,
         id: Date.now().toString(),
         createdAt: new Date().toISOString(),
       };
+      
+      // Armazenar a senha em localStorage separado para fins de demonstração
+      // Em um sistema real, isso seria feito de forma segura no backend
+      if (password) {
+        const userPasswords = JSON.parse(localStorage.getItem('pmerj_user_passwords') || '{}');
+        userPasswords[newUser.id] = password;
+        localStorage.setItem('pmerj_user_passwords', JSON.stringify(userPasswords));
+      }
       
       const updatedUsers = [...users, newUser];
       setUsers(updatedUsers);
@@ -102,7 +114,7 @@ export function UsersProvider({ children }: { children: ReactNode }) {
     }
   };
   
-  const updateUser = async (id: string, data: Partial<Omit<UserData, 'id'>>) => {
+  const updateUser = async (id: string, data: Partial<Omit<UserData, 'id'>> & { password?: string }) => {
     try {
       // Se estiver atualizando o e-mail, verificar se já existe
       if (data.email) {
@@ -120,12 +132,22 @@ export function UsersProvider({ children }: { children: ReactNode }) {
         }
       }
       
+      // Extrair a senha do data antes de atualizar o usuário
+      const { password, ...dataWithoutPassword } = data;
+      
       const updatedUsers = users.map((user) =>
-        user.id === id ? { ...user, ...data } : user
+        user.id === id ? { ...user, ...dataWithoutPassword } : user
       );
       
       setUsers(updatedUsers);
       localStorage.setItem('pmerj_users', JSON.stringify(updatedUsers));
+      
+      // Se houver senha, atualizar no localStorage separado
+      if (password) {
+        const userPasswords = JSON.parse(localStorage.getItem('pmerj_user_passwords') || '{}');
+        userPasswords[id] = password;
+        localStorage.setItem('pmerj_user_passwords', JSON.stringify(userPasswords));
+      }
       
       toast({
         title: "Usuário atualizado",

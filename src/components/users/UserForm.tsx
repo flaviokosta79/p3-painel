@@ -29,13 +29,24 @@ export function UserForm({ user, isEditing = false }: UserFormProps) {
   // Estados do formulário
   const [name, setName] = useState(user?.name || "");
   const [email, setEmail] = useState(user?.email || "");
+  const [password, setPassword] = useState("");
   const [role, setRole] = useState<UserRole>(user?.role || "user");
   const [unitId, setUnitId] = useState(user?.unit.id || "");
   const [isLoading, setIsLoading] = useState(false);
+  const [useGeneratedPassword, setUseGeneratedPassword] = useState(true);
+  const [changePassword, setChangePassword] = useState(false);
   
   // Gerar senha temporária para novos usuários
   const generateTemporaryPassword = () => {
     return Math.random().toString(36).slice(-8);
+  };
+  
+  // Alternar entre senha gerada automaticamente e senha personalizada
+  const togglePasswordMode = () => {
+    setUseGeneratedPassword(!useGeneratedPassword);
+    if (!useGeneratedPassword) {
+      setPassword(""); // Limpar a senha personalizada ao voltar para o modo automático
+    }
   };
   
   const handleSubmit = async (e: FormEvent) => {
@@ -61,6 +72,16 @@ export function UserForm({ user, isEditing = false }: UserFormProps) {
       return;
     }
     
+    // Validar senha se estiver alterando
+    if ((isEditing && changePassword && !password) || (!isEditing && !useGeneratedPassword && !password)) {
+      toast({
+        title: "Senha obrigatória",
+        description: "Por favor, forneça uma senha para o usuário.",
+        variant: "destructive",
+      });
+      return;
+    }
+    
     try {
       setIsLoading(true);
       
@@ -79,26 +100,43 @@ export function UserForm({ user, isEditing = false }: UserFormProps) {
       
       if (isEditing && user) {
         // Atualizar usuário existente
-        success = await updateUser(user.id, {
+        const updateData: any = {
           name,
           email,
           role,
           unit: selectedUnit,
-        });
+        };
+        
+        // Adicionar senha se estiver alterando
+        if (changePassword) {
+          updateData.password = password;
+        }
+        
+        success = await updateUser(user.id, updateData);
+        
+        // Mostrar mensagem de sucesso para alteração de senha
+        if (success && changePassword) {
+          toast({
+            title: "Senha alterada",
+            description: "A senha do usuário foi alterada com sucesso.",
+          });
+        }
       } else {
         // Criar novo usuário
+        const userPassword = useGeneratedPassword ? generateTemporaryPassword() : password;
+        
         success = await addUser({
           name,
           email,
+          password: userPassword,
           role,
           unit: selectedUnit,
           active: true,
         });
         
-        // Em um sistema real, enviaríamos uma senha temporária ao usuário por email
-        if (success) {
-          const tempPassword = generateTemporaryPassword();
-          console.log(`Senha temporária gerada para ${email}: ${tempPassword}`);
+        // Em um sistema real, enviaríamos uma senha temporária ao usuário por email se for gerada automaticamente
+        if (success && useGeneratedPassword) {
+          console.log(`Senha temporária gerada para ${email}: ${userPassword}`);
           toast({
             title: "Senha temporária gerada",
             description: `Uma senha temporária foi gerada e seria enviada para o e-mail do usuário em um sistema real.`,
@@ -186,6 +224,75 @@ export function UserForm({ user, isEditing = false }: UserFormProps) {
               </Select>
             </div>
           </div>
+          
+          {/* Campo de senha para novos usuários */}
+          {!isEditing && (
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <Label htmlFor="password">Senha</Label>
+                <Button 
+                  type="button" 
+                  variant="ghost" 
+                  size="sm"
+                  onClick={togglePasswordMode}
+                  className="text-xs h-7"
+                >
+                  {useGeneratedPassword ? "Definir senha manualmente" : "Gerar senha automaticamente"}
+                </Button>
+              </div>
+              
+              {!useGeneratedPassword ? (
+                <Input
+                  id="password"
+                  type="password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  placeholder="Digite a senha do usuário"
+                  required={!useGeneratedPassword}
+                />
+              ) : (
+                <div className="text-sm text-muted-foreground italic">
+                  Uma senha temporária será gerada automaticamente e seria enviada ao e-mail do usuário em um sistema real.
+                </div>
+              )}
+            </div>
+          )}
+          
+          {/* Opção de alterar senha para usuários existentes */}
+          {isEditing && (
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <Label htmlFor="changePassword">Senha</Label>
+                <Button 
+                  type="button" 
+                  variant="ghost" 
+                  size="sm"
+                  onClick={() => setChangePassword(!changePassword)}
+                  className="text-xs h-7"
+                >
+                  {changePassword ? "Cancelar alteração de senha" : "Alterar senha"}
+                </Button>
+              </div>
+              
+              {changePassword ? (
+                <div className="space-y-2">
+                  <Input
+                    id="password"
+                    type="password"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    placeholder="Digite a nova senha do usuário"
+                    required={changePassword}
+                  />
+                  <p className="text-sm text-muted-foreground">A nova senha será aplicada quando salvar as alterações.</p>
+                </div>
+              ) : (
+                <div className="text-sm text-muted-foreground italic">
+                  A senha atual do usuário será mantida. Clique em "Alterar senha" para definir uma nova senha.
+                </div>
+              )}
+            </div>
+          )}
           
           <CardFooter className="flex justify-between px-0 pt-4">
             <Button 

@@ -61,27 +61,46 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       
       const users = JSON.parse(storedUsers);
       
-      // Verificar credenciais (em uma implementação real, a senha seria verificada no backend)
-      // Aqui estamos apenas simulando para fins de desenvolvimento
-      const foundUser = users.find(
-        (u: any) => u.email === email && (password === 'admin123' || password === 'user123')
-      );
+      // Obter as senhas armazenadas
+      const userPasswords = JSON.parse(localStorage.getItem('pmerj_user_passwords') || '{}');
+      
+      // Verificar credenciais
+      const foundUser = users.find((u: any) => u.email === email && u.active !== false);
       
       if (foundUser) {
-        // Cria o objeto de usuário autenticado
-        const userObj: User = {
-          id: foundUser.id,
-          name: foundUser.name,
-          email: foundUser.email,
-          role: foundUser.role,
-          unit: foundUser.unit
-        };
+        // Verificar a senha do usuário
+        const userPassword = userPasswords[foundUser.id];
         
-        // Armazena no estado e localStorage
-        setUser(userObj);
-        localStorage.setItem('pmerj_user', JSON.stringify(userObj));
-        
-        return true;
+        // Se a senha armazenada corresponder à senha fornecida ou se for uma das senhas padrão para desenvolvimento
+        if (userPassword === password || password === 'admin123' || password === 'user123') {
+          // Cria o objeto de usuário autenticado
+          const userObj: User = {
+            id: foundUser.id,
+            name: foundUser.name,
+            email: foundUser.email,
+            role: foundUser.role,
+            unit: foundUser.unit
+          };
+          
+          // Armazena no estado e localStorage
+          setUser(userObj);
+          localStorage.setItem('pmerj_user', JSON.stringify(userObj));
+          
+          // Atualiza a data do último login
+          const updatedUsers = users.map((u: any) => {
+            if (u.id === foundUser.id) {
+              return {
+                ...u,
+                lastLogin: new Date().toISOString()
+              };
+            }
+            return u;
+          });
+          
+          localStorage.setItem('pmerj_users', JSON.stringify(updatedUsers));
+          
+          return true;
+        }
       }
       
       // Se não houver usuários cadastrados, permitir login com admin padrão
@@ -106,6 +125,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         };
         
         localStorage.setItem('pmerj_users', JSON.stringify([adminWithExtras]));
+        
+        // Armazena a senha padrão do admin
+        const adminPasswords = {};
+        adminPasswords['1'] = 'admin123';
+        localStorage.setItem('pmerj_user_passwords', JSON.stringify(adminPasswords));
         
         return true;
       }
