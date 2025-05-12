@@ -45,74 +45,8 @@ interface DocumentsContextType {
   getAllDocuments: () => Document[];
 }
 
-// Mock de documentos iniciais
-const MOCK_DOCUMENTS: Document[] = [
-  {
-    id: '1',
-    title: 'Relatório Mensal',
-    description: 'Relatório mensal de atividades',
-    unitId: '2',
-    unitName: '10º BPM',
-    documentDate: '2025-05-01',
-    submissionDate: '2025-05-02',
-    status: 'pending',
-    fileUrl: '/documents/relatorio.pdf',
-    fileName: 'relatorio.pdf',
-    fileType: 'application/pdf',
-    fileSize: 1024 * 1024 * 2, // 2MB
-    submittedBy: {
-      id: '2',
-      name: 'João Silva',
-    },
-    comments: [
-      {
-        id: '1',
-        text: 'Favor revisar a seção 3 do relatório',
-        date: '2025-05-03T14:30:00',
-        author: {
-          id: '1',
-          name: 'Admin Geral',
-        },
-      },
-    ],
-  },
-  {
-    id: '2',
-    title: 'Planilha de Ocorrências',
-    description: 'Planilha mensal de ocorrências registradas',
-    unitId: '2',
-    unitName: '10º BPM',
-    documentDate: '2025-05-01',
-    submissionDate: '2025-05-01',
-    status: 'approved',
-    fileUrl: '/documents/ocorrencias.xlsx',
-    fileName: 'ocorrencias.xlsx',
-    fileType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-    fileSize: 1024 * 1024 * 1, // 1MB
-    submittedBy: {
-      id: '2',
-      name: 'João Silva',
-    },
-  },
-  {
-    id: '3',
-    title: 'Protocolo de Segurança',
-    description: 'Atualização do protocolo de segurança',
-    unitId: '1',
-    unitName: 'Comando Central',
-    documentDate: '2025-04-28',
-    submissionDate: '2025-04-30',
-    status: 'completed',
-    fileUrl: '/documents/protocolo.docx',
-    fileName: 'protocolo.docx',
-    fileType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-    fileSize: 1024 * 1024 * 2.5, // 2.5MB
-    submittedBy: {
-      id: '1',
-      name: 'Admin Geral',
-    },
-  },
-];
+// Lista vazia para armazenar documentos
+// Não usamos mais dados mockados
 
 const DocumentsContext = createContext<DocumentsContextType | undefined>(undefined);
 
@@ -122,16 +56,17 @@ export function DocumentsProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true);
   
   useEffect(() => {
-    // Simula carregamento dos documentos (em um cenário real, seria uma chamada à API)
+    // Carrega os documentos do localStorage
     const loadDocuments = () => {
       setTimeout(() => {
-        // Obter dados do localStorage ou usar os mocks iniciais
+        // Obter dados do localStorage
         const storedDocuments = localStorage.getItem('pmerj_documents');
         if (storedDocuments) {
           setDocuments(JSON.parse(storedDocuments));
         } else {
-          setDocuments(MOCK_DOCUMENTS);
-          localStorage.setItem('pmerj_documents', JSON.stringify(MOCK_DOCUMENTS));
+          // Inicializa com array vazio se não houver documentos
+          setDocuments([]);
+          localStorage.setItem('pmerj_documents', JSON.stringify([]));
         }
         setLoading(false);
       }, 500);

@@ -25,25 +25,7 @@ interface AuthContextType {
   isLoading: boolean; // Nova propriedade para controlar o carregamento
 }
 
-// Mock de dados iniciais
-const MOCK_USERS = [
-  {
-    id: '1',
-    name: 'Admin Geral',
-    email: 'admin@pmerj.gov.br',
-    password: 'admin123',
-    role: 'admin' as UserRole,
-    unit: { id: '1', name: 'Comando Central' },
-  },
-  {
-    id: '2',
-    name: 'João Silva',
-    email: 'joao@pmerj.gov.br',
-    password: 'user123',
-    role: 'user' as UserRole,
-    unit: { id: '2', name: '10º BPM' },
-  },
-];
+// Removemos os dados mockados
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
@@ -73,16 +55,57 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const login = async (email: string, password: string): Promise<boolean> => {
     try {
       // Em um cenário real, esta solicitação seria feita a uma API
-      const foundUser = MOCK_USERS.find(
-        (u) => u.email === email && u.password === password
+      // Agora vamos verificar no localStorage (pmerj_users) se existe um usuário com esse email
+      const storedUsers = localStorage.getItem('pmerj_users');
+      if (!storedUsers) return false;
+      
+      const users = JSON.parse(storedUsers);
+      
+      // Verificar credenciais (em uma implementação real, a senha seria verificada no backend)
+      // Aqui estamos apenas simulando para fins de desenvolvimento
+      const foundUser = users.find(
+        (u: any) => u.email === email && (password === 'admin123' || password === 'user123')
       );
       
       if (foundUser) {
-        const { password, ...userWithoutPassword } = foundUser;
+        // Cria o objeto de usuário autenticado
+        const userObj: User = {
+          id: foundUser.id,
+          name: foundUser.name,
+          email: foundUser.email,
+          role: foundUser.role,
+          unit: foundUser.unit
+        };
         
         // Armazena no estado e localStorage
-        setUser(userWithoutPassword);
-        localStorage.setItem('pmerj_user', JSON.stringify(userWithoutPassword));
+        setUser(userObj);
+        localStorage.setItem('pmerj_user', JSON.stringify(userObj));
+        
+        return true;
+      }
+      
+      // Se não houver usuários cadastrados, permitir login com admin padrão
+      if (users.length === 0 && email === 'admin@pmerj.gov.br' && password === 'admin123') {
+        // Cria um usuário admin padrão
+        const defaultAdmin: User = {
+          id: '1',
+          name: 'Admin Padrão',
+          email: 'admin@pmerj.gov.br',
+          role: 'admin',
+          unit: { id: '1', name: 'Comando Central' }
+        };
+        
+        setUser(defaultAdmin);
+        localStorage.setItem('pmerj_user', JSON.stringify(defaultAdmin));
+        
+        // Adiciona o admin ao localStorage de usuários
+        const adminWithExtras = {
+          ...defaultAdmin,
+          createdAt: new Date().toISOString(),
+          active: true
+        };
+        
+        localStorage.setItem('pmerj_users', JSON.stringify([adminWithExtras]));
         
         return true;
       }

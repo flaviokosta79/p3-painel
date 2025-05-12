@@ -26,56 +26,13 @@ interface UsersContextType {
   getUnits: () => Unit[];
 }
 
-// Mock de unidades
-const MOCK_UNITS: Unit[] = [
+// Lista vazia para armazenar unidades
+const defaultUnits: Unit[] = [
   { id: '1', name: 'Comando Central' },
   { id: '2', name: '10º BPM' },
   { id: '3', name: '12º BPM' },
   { id: '4', name: '15º BPM' },
   { id: '5', name: '22º BPM' },
-];
-
-// Mock de usuários
-const MOCK_USERS: UserData[] = [
-  {
-    id: '1',
-    name: 'Admin Geral',
-    email: 'admin@pmerj.gov.br',
-    role: 'admin',
-    unit: MOCK_UNITS[0],
-    createdAt: '2025-01-01T00:00:00',
-    lastLogin: '2025-05-08T08:30:00',
-    active: true,
-  },
-  {
-    id: '2',
-    name: 'João Silva',
-    email: 'joao@pmerj.gov.br',
-    role: 'user',
-    unit: MOCK_UNITS[1],
-    createdAt: '2025-02-15T00:00:00',
-    lastLogin: '2025-05-07T14:20:00',
-    active: true,
-  },
-  {
-    id: '3',
-    name: 'Maria Costa',
-    email: 'maria@pmerj.gov.br',
-    role: 'user',
-    unit: MOCK_UNITS[2],
-    createdAt: '2025-03-10T00:00:00',
-    lastLogin: '2025-05-05T09:45:00',
-    active: true,
-  },
-  {
-    id: '4',
-    name: 'Carlos Souza',
-    email: 'carlos@pmerj.gov.br',
-    role: 'user',
-    unit: MOCK_UNITS[3],
-    createdAt: '2025-04-05T00:00:00',
-    active: true,
-  },
 ];
 
 const UsersContext = createContext<UsersContextType | undefined>(undefined);
@@ -85,15 +42,16 @@ export function UsersProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true);
   
   useEffect(() => {
-    // Simula carregamento dos usuários
+    // Carrega os usuários do localStorage
     const loadUsers = () => {
       setTimeout(() => {
         const storedUsers = localStorage.getItem('pmerj_users');
         if (storedUsers) {
           setUsers(JSON.parse(storedUsers));
         } else {
-          setUsers(MOCK_USERS);
-          localStorage.setItem('pmerj_users', JSON.stringify(MOCK_USERS));
+          // Inicializa com array vazio se não houver usuários
+          setUsers([]);
+          localStorage.setItem('pmerj_users', JSON.stringify([]));
         }
         setLoading(false);
       }, 500);
@@ -251,7 +209,15 @@ export function UsersProvider({ children }: { children: ReactNode }) {
   };
   
   const getUnits = () => {
-    return MOCK_UNITS;
+    // Retorna as unidades padrão (em uma implementação real, isso viria de uma API)
+    const storedUnits = localStorage.getItem('pmerj_units');
+    if (storedUnits) {
+      return JSON.parse(storedUnits);
+    } else {
+      // Se não houver unidades no localStorage, usa as unidades padrão e salva
+      localStorage.setItem('pmerj_units', JSON.stringify(defaultUnits));
+      return defaultUnits;
+    }
   };
   
   const value = {
