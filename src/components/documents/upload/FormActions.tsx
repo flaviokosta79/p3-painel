@@ -4,10 +4,20 @@ import { useNavigate } from "react-router-dom";
 
 interface FormActionsProps {
   isLoading: boolean;
+  onCancel?: () => void;
+  submitText?: string;
 }
 
-export function FormActions({ isLoading }: FormActionsProps) {
+export function FormActions({ isLoading, onCancel, submitText = "Enviar" }: FormActionsProps) {
   const navigate = useNavigate();
+
+  const handleCancel = () => {
+    if (onCancel) {
+      onCancel();
+    } else {
+      navigate(-1);
+    }
+  };
 
   return (
     <div className="flex justify-between pt-4 gap-2">
@@ -15,7 +25,7 @@ export function FormActions({ isLoading }: FormActionsProps) {
         type="button" 
         variant="outline"
         size="sm"
-        onClick={() => navigate(-1)}
+        onClick={handleCancel}
       >
         Cancelar
       </Button>
@@ -25,7 +35,7 @@ export function FormActions({ isLoading }: FormActionsProps) {
         size="sm"
         disabled={isLoading}
       >
-        {isLoading ? "Enviando..." : "Enviar"}
+        {isLoading ? "Enviando..." : submitText}
       </Button>
     </div>
   );

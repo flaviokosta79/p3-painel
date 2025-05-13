@@ -1,36 +1,50 @@
 
-import { useState, FormEvent } from "react";
+import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { useDocuments } from "@/hooks/useDocuments";
+import { useDocuments, type Document } from "@/hooks/useDocuments";
 import { useAuth } from "@/hooks/useAuth";
 import { useUsers } from "@/hooks/useUsers";
 import { toast } from "@/hooks/use-toast";
+import { useForm } from "react-hook-form";
 
-export function useDocumentForm() {
+interface DocumentFormValues {
+  title: string;
+  description: string;
+  unitId: string;
+  documentDate: Date;
+  deadline?: Date;
+  file?: File;
+}
+
+export function useDocumentForm(initialData?: Partial<Document>) {
   const { user } = useAuth();
   const { addDocument } = useDocuments();
   const { getUnits } = useUsers();
   const navigate = useNavigate();
-  // Estados do formulário
-  const [title, setTitle] = useState("");
-  const [description, setDescription] = useState("");
-  // Para usuários normais, o unitId padrão será "cpa-admin"
-  const [unitId, setUnitId] = useState(user?.role === 'admin' ? (user?.unit.id || "") : "cpa-admin");
-  // A data usa o formato yyyy-MM-dd internamente para compatibilidade com o input type="date"
-  const [documentDate, setDocumentDate] = useState("");
-  const [file, setFile] = useState<File | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [fileError, setFileError] = useState("");
   
-  const handleSubmit = async (e: FormEvent) => {
-    e.preventDefault();
-    
-    if (!file) {
+  const defaultValues: Partial<DocumentFormValues> = {
+    title: initialData?.title || "",
+    description: initialData?.description || "",
+    unitId: initialData?.unitId || (user?.role === 'admin' ? (user?.unit.id || "") : "cpa-admin"),
+    documentDate: initialData?.documentDate ? new Date(initialData.documentDate) : undefined,
+    deadline: initialData?.deadline ? new Date(initialData.deadline) : undefined,
+  };
+  
+  const form = useForm<DocumentFormValues>({
+    defaultValues,
+  });
+  
+  const { handleSubmit, control, formState, setValue, reset, watch } = form;
+  
+  const onSubmit = async (data: DocumentFormValues) => {
+    if (!data.file && !initialData) {
       setFileError("Selecione um arquivo para enviar.");
       return;
     }
     
-    if (!title || !unitId || !documentDate) {
+    if (!data.title || !data.unitId || !data.documentDate) {
       toast({
         title: "Campos obrigatórios",
         description: "Preencha todos os campos obrigatórios.",
@@ -42,20 +56,18 @@ export function useDocumentForm() {
     try {
       setIsLoading(true);
       
-      // Em um cenário real, faríamos upload do arquivo para um servidor
-      // Aqui estamos simulando isso      // Dados necessários para criar o documento
       // Define o tipo explicitamente para evitar erro de "any" implícito
       let unitData: { id: string; name: string; };
       
       // Verificar se é uma submissão para o 5º CPA (Admin)
-      if (unitId === "cpa-admin") {
+      if (data.unitId === "cpa-admin") {
         unitData = {
           id: "cpa-admin",
           name: "5º CPA (Admin)"
         };
       } else {
         const units = getUnits();
-        const foundUnit = units.find((u) => u.id === unitId);
+        const foundUnit = units.find((u) => u.id === data.unitId);
         
         if (!foundUnit) {
           toast({
@@ -69,21 +81,25 @@ export function useDocumentForm() {
       }
       
       // Criar novo documento
-      const success = await addDocument({
-        title,
-        description,
-        unitId: unitData.id,
-        unitName: unitData.name,
-        documentDate,
-        fileName: file.name,
-        fileType: file.type,
-        fileSize: file.size,
-        fileUrl: URL.createObjectURL(file), // Em produção, seria a URL do servidor
-      });
-      
-      if (success) {
-        navigate("/documents");
+      if (!initialData && data.file) {
+        const success = await addDocument({
+          title: data.title,
+          description: data.description,
+          unitId: unitData.id,
+          unitName: unitData.name,
+          documentDate: data.documentDate.toISOString().split('T')[0],
+          deadline: data.deadline?.toISOString().split('T')[0],
+          fileName: data.file.name,
+          fileType: data.file.type,
+          fileSize: data.file.size,
+          fileUrl: URL.createObjectURL(data.file), // Em produção, seria a URL do servidor
+        });
+        
+        if (success) {
+          navigate("/documents");
+        }
       }
+      
     } catch (error) {
       console.error("Erro ao enviar documento:", error);
       toast({
@@ -97,19 +113,14 @@ export function useDocumentForm() {
   };
 
   return {
-    title,
-    setTitle,
-    description,
-    setDescription,
-    unitId,
-    setUnitId,
-    documentDate,
-    setDocumentDate,
-    file,
-    setFile,
+    control,
+    handleSubmit: handleSubmit(onSubmit),
+    reset,
+    formState,
+    setValue,
+    watch,
     isLoading,
     fileError,
-    setFileError,
-    handleSubmit
+    setFileError
   };
 }

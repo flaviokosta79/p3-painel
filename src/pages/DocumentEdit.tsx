@@ -1,3 +1,4 @@
+
 import { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useDocuments, type Document } from "@/hooks/useDocuments";
@@ -10,6 +11,7 @@ import { useDocumentForm } from "@/components/documents/upload/useDocumentForm";
 import { toast } from "@/hooks/use-toast";
 import { ArrowLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Form } from "@/components/ui/form";
 
 const DocumentEdit = () => {
   const { id } = useParams<{ id: string }>();
@@ -17,15 +19,16 @@ const DocumentEdit = () => {
   const { documents, updateDocument, loading: documentsLoading } = useDocuments();
   const { user } = useAuth();
   const [document, setDocument] = useState<Document | null>(null);
-
+  
   const {
     control,
     handleSubmit,
     reset,
-    formState: { isSubmitting, errors },
+    formState,
     setValue,
     watch,
-  } = useDocumentForm(document || undefined); // Pass existing document data to the form hook
+    isLoading,
+  } = useDocumentForm();
 
   useEffect(() => {
     if (id) {
@@ -62,9 +65,14 @@ const DocumentEdit = () => {
     // and fields managed by the system (id, submissionDate, submittedBy, status)
     const { file, ...metadataToUpdate } = data; 
 
-    // Ensure unitName is updated if unitId changes, or handle it based on your data structure
-    // This might involve fetching unitName based on unitId if not directly available in the form
-    // For simplicity, we'll assume unitName is handled elsewhere or not directly editable.
+    // Convert Date objects to strings
+    if (metadataToUpdate.documentDate instanceof Date) {
+      metadataToUpdate.documentDate = metadataToUpdate.documentDate.toISOString().split('T')[0];
+    }
+    
+    if (metadataToUpdate.deadline instanceof Date) {
+      metadataToUpdate.deadline = metadataToUpdate.deadline.toISOString().split('T')[0];
+    }
 
     const success = await updateDocument(document.id, metadataToUpdate);
 
@@ -107,7 +115,7 @@ const DocumentEdit = () => {
           </p>
         </div>
 
-        <form onSubmit={handleSubmit(onSubmit)}>
+        <Form onSubmit={handleSubmit}>
           <Card>
             <CardHeader>
               <CardTitle>Detalhes do Documento</CardTitle>
@@ -118,11 +126,11 @@ const DocumentEdit = () => {
             <CardContent className="space-y-6">
               <DocumentFormFields 
                 control={control} 
-                errors={errors} 
+                errors={formState.errors} 
                 setValue={setValue} 
                 watch={watch} 
-                isEditMode={true} // Indicate edit mode
-                existingFile={{ // Pass existing file info if needed by DocumentFormFields
+                isEditMode={true}
+                existingFile={{ 
                   name: document.fileName,
                   type: document.fileType,
                   size: document.fileSize,
@@ -134,10 +142,11 @@ const DocumentEdit = () => {
           
           <FormActions 
             onCancel={() => navigate(`/documents/${document.id}`)} 
-            isSubmitting={isSubmitting} 
+            isSubmitting={formState.isSubmitting} 
             submitText="Salvar Alterações"
+            isLoading={isLoading}
           />
-        </form>
+        </Form>
       </div>
     </MainLayout>
   );
