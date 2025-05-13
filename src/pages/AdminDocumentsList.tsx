@@ -280,7 +280,7 @@ const AdminDocumentsList = () => {
       if (!success) return;
     }
 
-    if (!selectedDocumentTypeId || (!targetUnitId && !sendToAllUnits) || !docDate) {
+    if (!selectedDocumentTypeId || (!targetUnitId && !sendToAllUnits)) {
       setSubmitError("Todos os campos marcados com * são obrigatórios.");
       toast({ title: "Erro de Validação", description: "Preencha todos os campos obrigatórios.", variant: "destructive" });
       return;
@@ -342,8 +342,8 @@ const AdminDocumentsList = () => {
         description: docDescription.trim() || undefined,
         unitId: unit.id,
         unitName: unit.name,
-        documentDate: format(docDate as Date, "dd/MM/yyyy"),
-        deadline: deadlineDate ? format(deadlineDate, "dd/MM/yyyy") : undefined,
+        documentDate: new Date().toISOString().split('T')[0], // Usamos a data atual como padrão
+        deadline: deadlineDate ? format(deadlineDate, "yyyy-MM-dd") : undefined,
       };
       
       // Adiciona informações do arquivo apenas se um arquivo foi selecionado
