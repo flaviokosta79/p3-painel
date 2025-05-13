@@ -6,6 +6,7 @@ import { Mission } from "@/db/MissionStorage";
 import { useEffect, useState } from "react";
 import { UserMissionCard } from "@/components/UserMissionCard";
 import { useToast } from "@/components/ui/use-toast"; 
+import { cn } from "@/lib/utils"; 
 
 // Helper para obter o dia da semana em português para o valor da aba
 const getDayValue = (dayIndex: number): Mission['dayOfWeek'] => {
@@ -16,17 +17,43 @@ const getDayValue = (dayIndex: number): Mission['dayOfWeek'] => {
   return days[dayIndex];
 };
 
+// Nova função para formatar a data para a aba
+const getFormattedDateForDayOfWeek = (dayName: Mission['dayOfWeek']): string => {
+  const today = new Date(); // Use a data atual real
+  const todayIndex = today.getDay(); // 0 para Domingo, 1 para Segunda, etc.
+
+  const dayMap: Record<Mission['dayOfWeek'], number> = {
+    "Domingo": 0,
+    "Segunda-feira": 1,
+    "Terça-feira": 2,
+    "Quarta-feira": 3,
+    "Quinta-feira": 4,
+    "Sexta-feira": 5,
+    "Sábado": 6,
+  };
+  const targetDayIndex = dayMap[dayName];
+
+  const diffDays = targetDayIndex - todayIndex;
+  
+  const targetDate = new Date(today);
+  targetDate.setDate(today.getDate() + diffDays);
+
+  const day = String(targetDate.getDate()).padStart(2, '0');
+  const month = String(targetDate.getMonth() + 1).padStart(2, '0'); // getMonth() é 0-indexado
+
+  return `${day}/${month}`;
+};
+
 export function UserDailyMissions() {
   const { user } = useAuth();
   const { missions, loading: missionsLoading, updateUnitMissionStatus, setUnitMissionFile, clearUnitMissionFile } = useMissions(); 
   const [userMissions, setUserMissions] = useState<Mission[]>([]);
   // const [userUnitProgressMap, setUserUnitProgressMap] = useState<Record<string, UnitMissionProgress | undefined>>({}); // Não é mais necessário
 
-  const [selectedDay, setSelectedDay] = useState<Mission['dayOfWeek']>(getDayValue(new Date().getDay()));
-  const { toast } = useToast(); 
-
-  const today = new Date();
+  const today = new Date(); // Mantido para currentDayValue
   const currentDayValue = getDayValue(today.getDay());
+  const [selectedDay, setSelectedDay] = useState<Mission['dayOfWeek']>(currentDayValue); // Inicializa com o dia atual
+  const { toast } = useToast(); 
 
   const daysOfWeekForTabs: Mission['dayOfWeek'][] = ["Segunda-feira", "Terça-feira", "Quarta-feira", "Quinta-feira", "Sexta-feira"];
 
@@ -110,11 +137,22 @@ export function UserDailyMissions() {
 
         <Tabs defaultValue={currentDayValue} value={selectedDay} onValueChange={(value) => setSelectedDay(value as Mission['dayOfWeek'])} className="space-y-4">
           <TabsList>
-            {daysOfWeekForTabs.map((day) => (
-              <TabsTrigger key={day} value={day}>
-                {day}
-              </TabsTrigger>
-            ))}
+            {daysOfWeekForTabs.map((day) => {
+              const formattedDate = getFormattedDateForDayOfWeek(day);
+              const isToday = day === currentDayValue;
+              return (
+                <TabsTrigger 
+                  key={day} 
+                  value={day}
+                  className={cn({
+                    "bg-primary/10 text-primary font-semibold": isToday && selectedDay !== day, // Destaque suave se for hoje mas não selecionado
+                    "border-2 border-primary/50": isToday && selectedDay === day, // Destaque mais forte se for hoje E selecionado
+                  })}
+                >
+                  {day} {formattedDate}
+                </TabsTrigger>
+              );
+            })}
           </TabsList>
 
           {daysOfWeekForTabs.map((day) => (
