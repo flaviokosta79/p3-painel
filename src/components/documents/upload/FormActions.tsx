@@ -4,7 +4,7 @@ import { useNavigate } from "react-router-dom";
 
 interface FormActionsProps {
   isLoading: boolean;
-  isSubmitting?: boolean; // Add this optional prop
+  isSubmitting?: boolean;
   onCancel?: () => void;
   submitText?: string;
 }

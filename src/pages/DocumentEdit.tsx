@@ -1,150 +1,140 @@
-
-import { useEffect, useState } from "react";
+import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { useDocuments, type Document } from "@/hooks/useDocuments";
-import { useAuth } from "@/hooks/useAuth";
 import { MainLayout } from "@/components/layout/MainLayout";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { useDocuments } from "@/hooks/useDocuments";
 import { DocumentFormFields } from "@/components/documents/upload/DocumentFormFields";
 import { FormActions } from "@/components/documents/upload/FormActions";
-import { useDocumentForm } from "@/components/documents/upload/useDocumentForm";
 import { toast } from "@/hooks/use-toast";
-import { ArrowLeft } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { useDocumentForm } from "@/components/documents/upload/useDocumentForm";
 
 const DocumentEdit = () => {
-  const { id } = useParams<{ id: string }>();
+  const { id } = useParams();
   const navigate = useNavigate();
-  const { documents, updateDocument, loading: documentsLoading } = useDocuments();
-  const { user } = useAuth();
-  const [document, setDocument] = useState<Document | null>(null);
+  const { documents, updateDocument, loading } = useDocuments();
+  const [document, setDocument] = useState(null);
   
   const {
     control,
-    handleSubmit,
-    formState,
+    handleSubmit: submitForm,
+    formState: { errors, isSubmitting },
     setValue,
     watch,
-    isLoading,
-  } = useDocumentForm();
-
+    isLoading
+  } = useDocumentForm(document);
+  
   useEffect(() => {
-    if (id) {
-      const docToEdit = documents.find(doc => doc.id === id);
-      if (docToEdit) {
-        setDocument(docToEdit);
-        // Pre-fill form fields
-        setValue("title", docToEdit.title);
-        setValue("description", docToEdit.description || "");
-        setValue("unitId", docToEdit.unitId);
-        // Assuming unitName is derived or handled within DocumentFormFields or not directly editable here
-        setValue("documentDate", new Date(docToEdit.documentDate));
-        if (docToEdit.deadline) {
-          setValue("deadline", new Date(docToEdit.deadline));
-        }
-        // File related fields (fileUrl, fileName, fileType, fileSize) are generally not directly editable in this manner.
-        // If file replacement is needed, a new FileUploader instance would be required.
-        // For this example, we'll focus on metadata editing.
-      } else if (!documentsLoading) {
+    if (!loading && id) {
+      const foundDoc = documents.find(doc => doc.id === id);
+      if (foundDoc) {
+        setDocument(foundDoc);
+        
+        // Pre-populate form fields
+        setValue("title", foundDoc.title);
+        if (foundDoc.description) setValue("description", foundDoc.description);
+        setValue("unitId", foundDoc.unitId);
+        if (foundDoc.documentDate) setValue("documentDate", new Date(foundDoc.documentDate));
+        if (foundDoc.deadline) setValue("deadline", new Date(foundDoc.deadline));
+      } else {
         toast({
           title: "Documento não encontrado",
-          description: "O documento que você está tentando editar não foi encontrado.",
+          description: "O documento que você está tentando editar não existe.",
           variant: "destructive",
         });
         navigate("/documents");
       }
     }
-  }, [id, documents, documentsLoading, setValue, navigate]);
+  }, [id, documents, loading, navigate, setValue]);
+  
+  // Handle cancel button click
+  const handleCancel = () => {
+    navigate(-1);
+  };
+  
+  // Existing file information for display
+  const existingFile = document ? {
+    name: document.fileName,
+    type: document.fileType,
+    size: document.fileSize,
+    url: document.fileUrl,
+  } : null;
 
-  const onSubmit = async (data: any) => {
-    if (!document || !user) return;
-
-    // Exclude file-related fields that are not being updated here
-    // and fields managed by the system (id, submissionDate, submittedBy, status)
-    const { file, ...metadataToUpdate } = data; 
-
-    // Convert Date objects to strings
-    if (metadataToUpdate.documentDate instanceof Date) {
-      metadataToUpdate.documentDate = metadataToUpdate.documentDate.toISOString().split('T')[0];
-    }
+  // Handle form submission
+  const onSubmit = async (data) => {
+    if (!id || !document) return;
     
-    if (metadataToUpdate.deadline instanceof Date) {
-      metadataToUpdate.deadline = metadataToUpdate.deadline.toISOString().split('T')[0];
-    }
-
-    const success = await updateDocument(document.id, metadataToUpdate);
-
-    if (success) {
-      toast({
-        title: "Documento atualizado",
-        description: "O documento foi atualizado com sucesso.",
-      });
-      navigate(`/documents/${document.id}`); // Navigate to document detail or list
-    } else {
+    try {
+      const updatedDoc = {
+        title: data.title,
+        description: data.description,
+        unitId: data.unitId,
+        documentDate: data.documentDate.toISOString().split('T')[0],
+        deadline: data.deadline ? data.deadline.toISOString().split('T')[0] : undefined,
+      };
+      
+      const success = await updateDocument(id, updatedDoc);
+      
+      if (success) {
+        toast({
+          title: "Documento atualizado",
+          description: "O documento foi atualizado com sucesso.",
+        });
+        navigate("/documents");
+      }
+    } catch (error) {
+      console.error("Erro ao atualizar documento:", error);
       toast({
         title: "Erro ao atualizar",
-        description: "Não foi possível atualizar o documento. Tente novamente.",
+        description: "Ocorreu um erro ao atualizar o documento.",
         variant: "destructive",
       });
     }
   };
 
-  if (documentsLoading) {
-    return <MainLayout><p>Carregando...</p></MainLayout>;
-  }
-
-  if (!document) {
-    // This case should ideally be handled by the useEffect redirect,
-    // but as a fallback:
-    return <MainLayout><p>Documento não encontrado.</p></MainLayout>;
+  if (loading || !document) {
+    return (
+      <MainLayout>
+        <div className="flex justify-center items-center h-full">
+          <p>Carregando...</p>
+        </div>
+      </MainLayout>
+    );
   }
 
   return (
     <MainLayout>
-      <div className="space-y-6">
-        <div>
-          <Button variant="outline" size="sm" onClick={() => navigate(-1)} className="mb-4">
-            <ArrowLeft className="mr-2 h-4 w-4" />
-            Voltar
-          </Button>
-          <h1 className="text-3xl font-bold tracking-tight">Editar Documento</h1>
-          <p className="text-muted-foreground">
-            Modifique os detalhes do seu documento.
-          </p>
-        </div>
-
-        <form onSubmit={handleSubmit(onSubmit)}>
-          <Card>
-            <CardHeader>
-              <CardTitle>Detalhes do Documento</CardTitle>
-              <CardDescription>
-                Atualize as informações do documento abaixo. O arquivo original não será modificado aqui.
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-6">
-              <DocumentFormFields 
-                control={control} 
-                errors={formState.errors} 
-                setValue={setValue} 
-                watch={watch} 
-                isEditMode={true}
-                existingFile={{ 
-                  name: document.fileName,
-                  type: document.fileType,
-                  size: document.fileSize,
-                  url: document.fileUrl 
-                }}
-              />
-            </CardContent>
-          </Card>
-          
-          <FormActions 
-            onCancel={() => navigate(`/documents/${document.id}`)} 
-            isLoading={isLoading}
-            isSubmitting={formState.isSubmitting}  
-            submitText="Salvar Alterações"
-          />
-        </form>
+      <div className="max-w-4xl mx-auto">
+        <h1 className="text-2xl font-bold mb-6">Editar Documento</h1>
+        
+        <Card className="border rounded-md">
+          <CardContent className="p-6">
+            <form onSubmit={e => {
+              e.preventDefault();
+              submitForm(onSubmit)();
+            }}>
+              <div className="space-y-6">
+                <DocumentFormFields
+                  control={control}
+                  errors={errors}
+                  setValue={setValue}
+                  watch={watch}
+                  isEditMode={true}
+                  existingFile={existingFile}
+                />
+                
+                <div className="pt-4">
+                  <FormActions
+                    onCancel={handleCancel}
+                    isSubmitting={isSubmitting}
+                    submitText="Atualizar"
+                    isLoading={isLoading}
+                  />
+                </div>
+              </div>
+            </form>
+          </CardContent>
+        </Card>
       </div>
     </MainLayout>
   );
