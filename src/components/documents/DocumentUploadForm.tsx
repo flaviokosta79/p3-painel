@@ -3,7 +3,6 @@ import { Card, CardContent } from "@/components/ui/card";
 import { DocumentFormFields } from "./upload/DocumentFormFields";
 import { FormActions } from "./upload/FormActions";
 import { useDocumentForm } from "./upload/useDocumentForm";
-import { Form as HookForm } from "react-hook-form";
 
 export function DocumentUploadForm() {
   const {
@@ -14,17 +13,14 @@ export function DocumentUploadForm() {
     watch,
     isLoading,
     fileError,
-    setFileError,
-    form
+    setFileError
   } = useDocumentForm();
-  
-  const onSubmitForm = handleSubmit;
   
   return (
     <Card className="w-full border-t border-x border-b rounded-md">
       <CardContent className="p-6">
         <h3 className="text-lg font-medium mb-4">Envio de Documento</h3>
-        <form onSubmit={onSubmitForm}>
+        <form onSubmit={handleSubmit}>
           <div className="space-y-6">
             <DocumentFormFields
               control={control}
