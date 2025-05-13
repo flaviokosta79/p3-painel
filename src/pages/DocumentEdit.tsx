@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { MainLayout } from "@/components/layout/MainLayout";
@@ -6,7 +7,7 @@ import { useDocuments } from "@/hooks/useDocuments";
 import { DocumentFormFields } from "@/components/documents/upload/DocumentFormFields";
 import { FormActions } from "@/components/documents/upload/FormActions";
 import { toast } from "@/hooks/use-toast";
-import { useDocumentForm } from "@/components/documents/upload/useDocumentForm";
+import { useForm } from "react-hook-form";
 
 const DocumentEdit = () => {
   const { id } = useParams();
@@ -14,14 +15,20 @@ const DocumentEdit = () => {
   const { documents, updateDocument, loading } = useDocuments();
   const [document, setDocument] = useState(null);
   
-  const {
-    control,
-    handleSubmit,
-    formState: { errors, isSubmitting },
-    setValue,
-    watch,
-    isLoading
-  } = useDocumentForm(document);
+  // Use directly useForm instead of custom hook for edit page
+  const form = useForm({
+    defaultValues: {
+      title: "",
+      description: "",
+      unitId: "",
+      documentDate: undefined,
+      deadline: undefined,
+    }
+  });
+  
+  const { control, handleSubmit, formState, setValue, watch } = form;
+  const { errors, isSubmitting } = formState;
+  const [isLoading, setIsLoading] = useState(false);
   
   useEffect(() => {
     if (!loading && id) {
@@ -64,6 +71,7 @@ const DocumentEdit = () => {
     if (!id || !document) return;
     
     try {
+      setIsLoading(true);
       const updatedDoc = {
         title: data.title,
         description: data.description,
@@ -88,6 +96,8 @@ const DocumentEdit = () => {
         description: "Ocorreu um erro ao atualizar o documento.",
         variant: "destructive",
       });
+    } finally {
+      setIsLoading(false);
     }
   };
 

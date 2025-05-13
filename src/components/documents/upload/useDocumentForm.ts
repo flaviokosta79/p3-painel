@@ -18,7 +18,7 @@ interface DocumentFormValues {
 
 export function useDocumentForm(initialData?: Partial<Document>) {
   const { user } = useAuth();
-  const { addDocument } = useDocuments();
+  const { addDocument, updateDocument } = useDocuments();
   const { getUnits } = useUsers();
   const navigate = useNavigate();
   const [isLoading, setIsLoading] = useState(false);
@@ -36,7 +36,7 @@ export function useDocumentForm(initialData?: Partial<Document>) {
     defaultValues,
   });
   
-  const { handleSubmit, control, formState, setValue, reset, watch } = form;
+  const { control, formState, setValue, reset, watch } = form;
   
   const onSubmit = async (data: DocumentFormValues) => {
     if (!data.file && !initialData) {
@@ -114,13 +114,14 @@ export function useDocumentForm(initialData?: Partial<Document>) {
 
   return {
     control,
-    handleSubmit: handleSubmit(onSubmit),
+    handleSubmit: form.handleSubmit,
     reset,
     formState,
     setValue,
     watch,
     isLoading,
     fileError,
-    setFileError
+    setFileError,
+    onSubmit
   };
 }
