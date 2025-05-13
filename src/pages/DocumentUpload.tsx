@@ -1,13 +1,12 @@
 
 import { MainLayout } from "@/components/layout/MainLayout";
-import { DocumentUploadForm } from "@/components/documents/DocumentUploadForm";
 import { DocumentCard } from "@/components/documents/DocumentCard";
 import { useAuth } from "@/hooks/useAuth";
 import { useDocuments } from "@/hooks/useDocuments";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { useNavigate } from "react-router-dom";
-import { ArrowRight, Columns3 } from "lucide-react";
+import { ArrowRight, FilePlus2 } from "lucide-react";
 
 const DocumentUpload = () => {
   const { user } = useAuth();
@@ -22,8 +21,11 @@ const DocumentUpload = () => {
     (a, b) => new Date(b.submissionDate).getTime() - new Date(a.submissionDate).getTime()
   );
   
-  // Pegar apenas os 3 mais recentes  // Documentos pendentes
+  // Documentos pendentes
   const pendingDocuments = userDocuments.filter((doc) => doc.status === 'pending');
+  
+  // Documentos em revisão
+  const revisionDocuments = userDocuments.filter((doc) => doc.status === 'revision');
   
   // Documentos concluídos
   const completedDocuments = userDocuments.filter((doc) => doc.status === 'completed' || doc.status === 'approved');
@@ -41,13 +43,22 @@ const DocumentUpload = () => {
   return (
     <MainLayout>
       <div className="space-y-6">
-        <div className="pb-2">
-          <h1 className="text-2xl font-bold tracking-tight">
-            Olá, {user?.name || 'Usuário'}
-          </h1>
-          <p className="text-muted-foreground text-sm">
-            Utilize esta página para enviar novos documentos e acompanhar suas pendências.
-          </p>
+        <div className="pb-2 flex justify-between items-center">
+          <div>
+            <h1 className="text-2xl font-bold tracking-tight">
+              Olá, {user?.name || 'Usuário'}
+            </h1>
+            <p className="text-muted-foreground text-sm">
+              Utilize esta página para acompanhar suas pendências.
+            </p>
+          </div>
+          <Button 
+            onClick={() => navigate('/documents/new')} 
+            className="bg-pmerj-blue hover:bg-pmerj-blue/90"
+          >
+            <FilePlus2 className="mr-2 h-4 w-4" />
+            Enviar Novo Documento
+          </Button>
         </div>
           {/* Cards com estatísticas */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -104,18 +115,6 @@ const DocumentUpload = () => {
         </div>
         
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {/* Coluna do formulário (1/3) */}
-          <div className="space-y-6">
-            <div className="pb-2 pt-2">
-              <h2 className="text-xl font-bold tracking-tight">Enviar Novo Documento</h2>
-              <p className="text-muted-foreground text-sm">
-                Preencha o formulário abaixo para submeter um novo documento.
-              </p>
-            </div>
-            
-            <DocumentUploadForm />
-          </div>
-          
           {/* Coluna dos documentos pendentes (1/3) */}
           <div className="space-y-6">
             <div className="flex justify-between items-center mb-4">
@@ -151,7 +150,44 @@ const DocumentUpload = () => {
               </Card>
             )}
           </div>
-            {/* Coluna dos documentos concluídos (1/3) */}
+          
+          {/* Coluna dos documentos em revisão (1/3) */}
+          <div className="space-y-6">
+            <div className="flex justify-between items-center mb-4">
+              <h2 className="text-xl font-bold tracking-tight">Documentos em Revisão</h2>
+              {revisionDocuments.length > 0 && (
+                <Button 
+                  variant="ghost" 
+                  size="sm" 
+                  className="text-sm text-muted-foreground"
+                  onClick={() => navigate('/documents')}
+                >
+                  Ver todos
+                  <ArrowRight className="ml-1 h-4 w-4" />
+                </Button>
+              )}
+            </div>
+            
+            {loading ? (
+              <div className="text-center py-8">Carregando...</div>
+            ) : revisionDocuments.length > 0 ? (
+              <div className="space-y-3">
+                {revisionDocuments.slice(0, 3).map((doc) => (
+                  <DocumentCard key={doc.id} document={doc} />
+                ))}
+              </div>
+            ) : (
+              <Card className="bg-muted/50">
+                <CardContent className="p-6 text-center">
+                  <p className="text-muted-foreground">
+                    Nenhum documento em revisão.
+                  </p>
+                </CardContent>
+              </Card>
+            )}
+          </div>
+          
+          {/* Coluna dos documentos concluídos (1/3) */}
           <div className="space-y-6">
             <div className="flex justify-between items-center mb-4">
               <h2 className="text-xl font-bold tracking-tight">Documentos Concluídos</h2>

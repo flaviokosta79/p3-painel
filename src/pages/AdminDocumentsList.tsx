@@ -6,7 +6,7 @@ import { useDocumentRequirementsContext } from "@/hooks/DocumentRequirementsProv
 import type { NewDocumentRequirement } from "@/hooks/useDocumentRequirements";
 import { MainLayout } from "@/components/layout/MainLayout";
 import { DocumentCard } from "@/components/documents/DocumentCard"; 
-import { DocumentActionsRow } from "@/components/documents/DocumentActionsRow"; // Novo componente importado
+import { DocumentActionsRow } from "@/components/documents/DocumentActionsRow"; 
 import { formatDate } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -53,7 +53,7 @@ import { Calendar } from "@/components/ui/calendar";
 import { format } from "date-fns"; 
 import { ptBR } from "date-fns/locale"; 
 import { cn } from "@/lib/utils"; 
-import { Badge } from "@/components/ui/badge"; // Importação adicionada
+import { Badge } from "@/components/ui/badge";
 
 const AdminDocumentsList = () => {
   const { documents, loading: loadingDocuments, addDocument } = useDocuments(); 
@@ -415,78 +415,10 @@ const AdminDocumentsList = () => {
           </div>
           
           <div className="flex flex-col sm:flex-row gap-2">
-            <Button onClick={exportToCSV} variant="outline" size="sm">
-              <Download className="mr-2 h-4 w-4" />
-              Exportar CSV
-            </Button>
-          </div>
-        </div>
-        
-        <div className="flex flex-col sm:flex-row gap-4 mb-6">
-          <div className="relative flex-1">
-            <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-            <Input
-              placeholder="Pesquisar documentos..."
-              className="pl-8"
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-            />
-          </div>
-          
-          <Select value={unitFilter} onValueChange={setUnitFilter}>
-            <SelectTrigger className="w-full sm:w-[200px]">
-              <SelectValue placeholder="Filtrar por unidade" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">Todas as Unidades</SelectItem>
-              {units.map((unit) => (
-                <SelectItem key={unit.id} value={unit.id}>
-                  {unit.name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-        
-        <div className="flex flex-col sm:flex-row gap-4 mb-6">
-          <Tabs 
-            defaultValue="all" 
-            className="w-full" 
-            value={statusFilter} 
-            onValueChange={setStatusFilter}
-          >
-            <TabsList className="grid grid-cols-2 w-full">
-              <TabsTrigger value="all">Todos</TabsTrigger>
-              <TabsTrigger value="completed">Concluídos</TabsTrigger>
-            </TabsList>
-          </Tabs>
-          
-          <Select value={dateFilter} onValueChange={setDateFilter}>
-            <SelectTrigger className="w-full sm:w-[200px]">
-              <SelectValue placeholder="Filtrar por data" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">Todas as Datas</SelectItem>
-              <SelectItem value="today">Hoje</SelectItem>
-              <SelectItem value="thisWeek">Esta Semana</SelectItem>
-              <SelectItem value="thisMonth">Este Mês</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
-
-        {/* Card para Criar novo documento */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Criar novo documento</CardTitle>
-            <CardDescription>
-              Utilize este formulário para adicionar novos documentos ao sistema.
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
             <Dialog open={isSubmitDocumentDialogOpen} onOpenChange={setIsSubmitDocumentDialogOpen}>
               <DialogTrigger asChild>
-                <Button variant="default" size="lg" className="w-full sm:w-auto">
-                  <FilePlus2 className="mr-2 h-5 w-5" />
+                <Button variant="default" className="bg-pmerj-blue hover:bg-pmerj-blue/90">
+                  <FilePlus2 className="mr-2 h-4 w-4" />
                   Criar novo documento
                 </Button>
               </DialogTrigger>
@@ -663,8 +595,65 @@ const AdminDocumentsList = () => {
                 </form>
               </DialogContent>
             </Dialog>
-          </CardContent>
-        </Card>
+            
+            <Button onClick={exportToCSV} variant="outline" size="sm">
+              <Download className="mr-2 h-4 w-4" />
+              Exportar CSV
+            </Button>
+          </div>
+        </div>
+        
+        <div className="flex flex-col sm:flex-row gap-4 mb-6">
+          <div className="relative flex-1">
+            <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+            <Input
+              placeholder="Pesquisar documentos..."
+              className="pl-8"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+            />
+          </div>
+          
+          <Select value={unitFilter} onValueChange={setUnitFilter}>
+            <SelectTrigger className="w-full sm:w-[200px]">
+              <SelectValue placeholder="Filtrar por unidade" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Todas as Unidades</SelectItem>
+              {units.map((unit) => (
+                <SelectItem key={unit.id} value={unit.id}>
+                  {unit.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+        
+        <div className="flex flex-col sm:flex-row gap-4 mb-6">
+          <Tabs 
+            defaultValue="all" 
+            className="w-full" 
+            value={statusFilter} 
+            onValueChange={setStatusFilter}
+          >
+            <TabsList className="grid grid-cols-2 w-full">
+              <TabsTrigger value="all">Todos</TabsTrigger>
+              <TabsTrigger value="completed">Concluídos</TabsTrigger>
+            </TabsList>
+          </Tabs>
+          
+          <Select value={dateFilter} onValueChange={setDateFilter}>
+            <SelectTrigger className="w-full sm:w-[200px]">
+              <SelectValue placeholder="Filtrar por data" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Todas as Datas</SelectItem>
+              <SelectItem value="today">Hoje</SelectItem>
+              <SelectItem value="thisWeek">Esta Semana</SelectItem>
+              <SelectItem value="thisMonth">Este Mês</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
 
         {loadingDocuments ? (
           <div className="py-8 text-center">Carregando documentos...</div>

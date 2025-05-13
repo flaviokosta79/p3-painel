@@ -34,18 +34,28 @@ const Index = () => {
   
   const stats = getStats();
   
-  // Documentos recentes (últimos 3)
-  const getRecentDocuments = () => {
-    const filteredDocs = isAdmin
-      ? documents
-      : documents.filter((doc) => doc.submittedBy.id === user?.id);
-    
-    return filteredDocs
-      .sort((a, b) => new Date(b.submissionDate).getTime() - new Date(a.submissionDate).getTime())
-      .slice(0, 3);
+  // Filtrar documentos para usuários normais e admin
+  const getUserDocuments = () => {
+    if (isAdmin) {
+      return documents;
+    } else {
+      return documents.filter((doc) => doc.submittedBy.id === user?.id);
+    }
   };
   
-  const recentDocuments = getRecentDocuments();
+  const userDocs = getUserDocuments();
+  
+  // Documentos pendentes
+  const pendingDocuments = userDocs
+    .filter(doc => doc.status === "pending")
+    .sort((a, b) => new Date(b.submissionDate).getTime() - new Date(a.submissionDate).getTime())
+    .slice(0, 3);
+    
+  // Documentos em revisão
+  const revisionDocuments = userDocs
+    .filter(doc => doc.status === "revision")
+    .sort((a, b) => new Date(b.submissionDate).getTime() - new Date(a.submissionDate).getTime())
+    .slice(0, 3);
 
   return (
     <MainLayout>
@@ -102,46 +112,71 @@ const Index = () => {
         </div>
         
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          <div className="lg:col-span-2 space-y-4">
-            <div className="flex justify-between items-center">
-              <h2 className="text-xl font-semibold">Documentos Recentes</h2>
-              <Button 
-                variant="outline" 
-                onClick={() => isAdmin ? navigate("/admin/documents") : navigate("/documents")}
-              >
-                Ver todos
-              </Button>
+          <div className="lg:col-span-2 grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {/* Coluna de Documentos Pendentes */}
+            <div className="space-y-4">
+              <div className="flex justify-between items-center">
+                <h2 className="text-xl font-semibold">Documentos Pendentes</h2>
+                <Button 
+                  variant="outline" 
+                  onClick={() => isAdmin ? navigate("/admin/documents") : navigate("/documents")}
+                >
+                  Ver todos
+                </Button>
+              </div>
+              
+              {loading ? (
+                <div className="py-8 text-center">Carregando documentos...</div>
+              ) : pendingDocuments.length > 0 ? (
+                <div className="grid grid-cols-1 gap-4">
+                  {pendingDocuments.map((doc) => (
+                    <DocumentCard key={doc.id} document={doc} />
+                  ))}
+                </div>
+              ) : (
+                <Card className="p-6 text-center">
+                  <p className="text-muted-foreground mb-4">
+                    Nenhum documento pendente
+                  </p>
+                </Card>
+              )}
             </div>
             
-            {loading ? (
-              <div className="py-8 text-center">Carregando documentos...</div>
-            ) : recentDocuments.length > 0 ? (
-              <div className="grid grid-cols-1 gap-4">
-                {recentDocuments.map((doc) => (
-                  <DocumentCard key={doc.id} document={doc} />
-                ))}
-              </div>
-            ) : (
-              <Card className="p-6 text-center">
-                <p className="text-muted-foreground mb-4">
-                  Nenhum documento encontrado
-                </p>
+            {/* Coluna de Documentos em Revisão */}
+            <div className="space-y-4">
+              <div className="flex justify-between items-center">
+                <h2 className="text-xl font-semibold">Documentos em Revisão</h2>
                 <Button 
-                  onClick={() => navigate("/documents/upload")} 
-                  className="bg-pmerj-blue hover:bg-pmerj-blue/90"
+                  variant="outline" 
+                  onClick={() => isAdmin ? navigate("/admin/documents") : navigate("/documents")}
                 >
-                  <Upload className="mr-2 h-4 w-4" />
-                  Enviar um documento
+                  Ver todos
                 </Button>
-              </Card>
-            )}
+              </div>
+              
+              {loading ? (
+                <div className="py-8 text-center">Carregando documentos...</div>
+              ) : revisionDocuments.length > 0 ? (
+                <div className="grid grid-cols-1 gap-4">
+                  {revisionDocuments.map((doc) => (
+                    <DocumentCard key={doc.id} document={doc} />
+                  ))}
+                </div>
+              ) : (
+                <Card className="p-6 text-center">
+                  <p className="text-muted-foreground mb-4">
+                    Nenhum documento em revisão
+                  </p>
+                </Card>
+              )}
+            </div>
           </div>
           
           <div className="space-y-4">
             <h2 className="text-xl font-semibold">Ações Rápidas</h2>
             <div className="grid grid-cols-1 gap-4">
               <Card className="transition-colors hover:bg-muted/50">
-                <Link to="/documents/upload" className="block p-6">
+                <Link to="/documents/new" className="block p-6">
                   <div className="flex items-center space-x-4">
                     <div className="bg-primary/10 p-2 rounded-full">
                       <Upload className="h-6 w-6 text-primary" />
