@@ -53,7 +53,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 
 const AdminDailyMissions = () => {
   const { missions, loading: loadingMissions, addMission, deleteMission, updateMission, updateUnitMissionStatus, setUnitMissionFile, clearUnitMissionFile } = useMissions(); 
-  const { units, users, getUnitNameById, loading: loadingUsers } = useUsers(); 
+  const { units: allUnitsFromHook, users, getUnitNameById, loading: loadingUsers } = useUsers(); 
   const { toast } = useToast();
   const { user: currentUser } = useAuth();
 
@@ -190,58 +190,78 @@ const AdminDailyMissions = () => {
     if (fileInputRef.current) fileInputRef.current.value = ""; 
   };
 
-  const renderUnitProgress = (mission: Mission) => {
-    if (loadingUsers || !units || units.length === 0) {
-      return <p>Carregando unidades...</p>;
+  const ADMIN_UNIT_ID = 'cpa5'; // ID da unidade a ser excluída da exibição de progresso
+
+  // Função para renderizar o progresso das unidades com popover
+  const renderUnitProgress = (mission: Mission, currentStatusFilter: MissionStatus | "all") => {
+    if (!mission.unitProgress || mission.unitProgress.length === 0) {
+      return <span className="text-xs text-muted-foreground">Nenhuma unidade designada ou progresso não iniciado.</span>;
     }
 
-    const isTargetingAllUnits = mission.targetUnitIds.length === units.length && units.every(u => mission.targetUnitIds.includes(u.id));
+    let initialUnitsForDisplay = mission.unitProgress.filter(up => up.unitId !== ADMIN_UNIT_ID);
+    let unitsToShow = initialUnitsForDisplay;
 
-    let displayUnits: {id: string, name: string}[] = [];
-    if(isTargetingAllUnits && mission.unitProgress.length !== units.length) {
-      displayUnits = units.map(u => ({id: u.id, name: u.name}));
-    } else {
-      displayUnits = mission.targetUnitIds.map(id => ({ id, name: getUnitNameById(id) || `ID (${id}) Desc.`}) );
+    if (currentStatusFilter !== "all") {
+        if (currentStatusFilter === 'Pendente') {
+            unitsToShow = initialUnitsForDisplay.filter(up => up.status === 'Pendente' || up.status === 'Atrasada');
+        } else {
+            unitsToShow = initialUnitsForDisplay.filter(up => up.status === currentStatusFilter);
+        }
     }
-    
-    if (displayUnits.length === 0) return <p>Nenhuma unidade alvo.</p>;
+    // Se currentStatusFilter === "all", unitsToShow permanece como initialUnitsForDisplay (todas as unidades não-admin)
+
+    if (unitsToShow.length === 0) {
+        if (initialUnitsForDisplay.length > 0 && currentStatusFilter !== "all") {
+            // Havia unidades inicialmente, mas nenhuma correspondeu ao filtro de status atual
+            let statusDisplayName = currentStatusFilter;
+            if (currentStatusFilter === 'Pendente') statusDisplayName = 'Pendente/Atrasada' as MissionStatus; // Cast para evitar erro de tipo na string
+            return <span className="text-xs text-muted-foreground">Nenhuma unidade '{statusDisplayName}' nesta missão.</span>;
+        } else if (mission.unitProgress.some(up => up.unitId === ADMIN_UNIT_ID) && initialUnitsForDisplay.length === 0) {
+            // Apenas a unidade ADMIN_UNIT_ID estava presente
+            return <span className="text-xs text-muted-foreground">Controle interno do 5º CPA.</span>;
+        } else if (initialUnitsForDisplay.length === 0 && mission.unitProgress.length === 0){
+            // Nenhuma unidade de progresso para esta missão
+             return <span className="text-xs text-muted-foreground">Progresso não iniciado.</span>;
+        } else {
+             // Caso genérico para quando unitsToShow é 0 após todos os filtros, mas não se encaixa nos acima
+             return <span className="text-xs text-muted-foreground">Nenhuma unidade visível com os filtros atuais.</span>;
+        }
+    }
 
     return (
-      <div className="flex flex-wrap gap-2 mt-1"> 
-        {displayUnits.map(unit => {
-          const progress = mission.unitProgress.find(up => up.unitId === unit.id);
-          const status = progress?.status || 'Pendente'; 
-          
+      <div className="flex flex-wrap gap-2 items-center">
+        {unitsToShow.map((up) => {
+          const unitName = getUnitNameById(up.unitId) || 'Desconhecida';
           let badgeVariant: "default" | "secondary" | "destructive" | "outline" = "secondary";
-          let badgeClassName = "";
+          let badgeClasses = "";
 
-          switch (status) {
+          switch (up.status) {
             case "Cumprida":
-              badgeClassName = "bg-green-500 hover:bg-green-600 text-white border-green-600";
+              badgeClasses = "bg-green-500 hover:bg-green-600 text-white border-green-600";
               break;
             case "Pendente":
             case "Atrasada":
             case "Não Cumprida":
-              badgeClassName = "bg-red-500 hover:bg-red-600 text-white border-red-600";
+              badgeClasses = "bg-red-500 hover:bg-red-600 text-white border-red-600";
               break;
             default:
-              badgeClassName = "bg-gray-400 hover:bg-gray-500 text-white border-gray-500"; 
+              badgeClasses = "bg-gray-400 hover:bg-gray-500 text-white border-gray-500"; 
           }
 
           return (
-            <Popover key={unit.id}> 
+            <Popover key={up.unitId}> 
               <PopoverTrigger asChild>
-                <Badge variant="outline" className={`cursor-pointer ${badgeClassName}`}> 
-                  {unit.name}
+                <Badge variant="outline" className={`cursor-pointer ${badgeClasses}`}> 
+                  {unitName}
                 </Badge>
               </PopoverTrigger>
               {currentUser && (
                 <PopoverContent className="w-56 p-2">
-                  <p className="text-xs text-muted-foreground mb-1">Ações para: {getUnitNameById(unit.id) || unit.name}</p>
-                  <p className="text-sm font-semibold mb-2">Status Atual: {status}</p>
+                  <p className="text-xs text-muted-foreground mb-1">Ações para: {getUnitNameById(up.unitId) || unitName}</p>
+                  <p className="text-sm font-semibold mb-2">Status Atual: {up.status}</p>
                   <Select 
-                    defaultValue={status} 
-                    onValueChange={async (newStatusVal: MissionStatus) => await handleUnitMissionStatusChange(mission.id, unit.id, newStatusVal)}                       
+                    defaultValue={up.status} 
+                    onValueChange={async (newStatusVal: MissionStatus) => await handleUnitMissionStatusChange(mission.id, up.unitId, newStatusVal)}                       
                   >
                     <SelectTrigger className="h-8 text-xs mb-1">Mudar Status</SelectTrigger>
                     <SelectContent>
@@ -250,7 +270,7 @@ const AdminDailyMissions = () => {
                       <SelectItem value="Não Cumprida">Não Cumprida</SelectItem>
                     </SelectContent>
                   </Select>
-                  {status !== 'Cumprida' && (
+                  {up.status !== 'Cumprida' && (
                     <Button 
                       variant="outline" 
                       size="sm" 
@@ -258,7 +278,7 @@ const AdminDailyMissions = () => {
                       onClick={() => {
                         if (fileInputRef.current) {
                           fileInputRef.current.setAttribute('data-mission-id', mission.id);
-                          fileInputRef.current.setAttribute('data-unit-id', unit.id);
+                          fileInputRef.current.setAttribute('data-unit-id', up.unitId);
                           fileInputRef.current.click();
                         }
                       }}
@@ -266,19 +286,19 @@ const AdminDailyMissions = () => {
                       <Upload className="mr-1 h-3 w-3" /> Enviar Arquivo
                     </Button>
                   )}
-                  {progress?.submittedFile && (
+                  {up.submittedFile && (
                      <Button 
                         variant="outline" 
                         size="sm" 
                         className="w-full text-xs mt-1"
                         onClick={async () => {
                             if (!currentUser) return;
-                            const success = await clearUnitMissionFile(mission.id, unit.id, currentUser);
+                            const success = await clearUnitMissionFile(mission.id, up.unitId, currentUser);
                             if(success) toast({title: "Arquivo Removido"});
                             else toast({title: "Erro ao remover arquivo", variant: "destructive"});
                         }}
                       >
-                        <Trash2 className="mr-1 h-3 w-3" /> Remover Arquivo: {progress.submittedFile.name.substring(0,15)}...
+                        <Trash2 className="mr-1 h-3 w-3" /> Remover Arquivo: {up.submittedFile.name.substring(0,15)}...
                       </Button>
                   )}
                 </PopoverContent>
@@ -296,8 +316,28 @@ const AdminDailyMissions = () => {
       return mission.targetUnitIds.includes(unitFilter);
     })
     .filter((mission) => {
-      if (statusFilter === "all") return true;
-      return mission.unitProgress.some(up => up.status === statusFilter);
+      if (statusFilter === "all") return true; // Adicionar esta linha de volta
+
+      if (unitFilter !== "all") {
+        // Uma unidade específica está selecionada
+        const specificUnitProgress = mission.unitProgress.find(up => up.unitId === unitFilter);
+        
+        if (!specificUnitProgress) {
+          // Se a unidade específica não tem registro (improvável), considera 'Pendente'.
+          return statusFilter === 'Pendente';
+        }
+        return specificUnitProgress.status === statusFilter;
+      } else {
+        // "Todas as unidades" está selecionado para o filtro de unidade
+        if (statusFilter === 'Pendente') {
+          // Missão aparece se ALGUMA unidade for Pendente ou Atrasada
+          return mission.unitProgress.some(up => up.status === 'Pendente' || up.status === 'Atrasada');
+        } else {
+          // Para outros status ("Cumprida", "Não Cumprida", "Atrasada") com "Todas as unidades":
+          // A missão passa se *pelo menos uma* unidade tiver esse status.
+          return mission.unitProgress.some(up => up.status === statusFilter);
+        }
+      }
     })
     .filter((mission) => {
       if (!searchTerm) return true;
@@ -346,19 +386,19 @@ const AdminDailyMissions = () => {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">Todas as Unidades</SelectItem>
-                  {units.map(unit => <SelectItem key={unit.id} value={unit.id}>{unit.name}</SelectItem>)}
+                  {allUnitsFromHook.map(unit => <SelectItem key={unit.id} value={unit.id}>{unit.name}</SelectItem>)}
                 </SelectContent>
               </Select>
               <Select value={statusFilter} onValueChange={(value) => setStatusFilter(value as MissionStatus | "all")}>
-                <SelectTrigger className="text-xs">
-                  <SelectValue placeholder="Filtrar por Status" />
+                <SelectTrigger className="w-auto min-w-[150px]">
+                  <SelectValue placeholder="Todos os Status" />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">Todos os Status</SelectItem>
                   <SelectItem value="Pendente">Pendente</SelectItem>
                   <SelectItem value="Cumprida">Cumprida</SelectItem>
-                  <SelectItem value="Não Cumprida">Não Cumprida</SelectItem>
-                  <SelectItem value="Atrasada">Atrasada</SelectItem>
+                  {/* <SelectItem value="Não Cumprida">Não Cumprida</SelectItem> // Removido */}
+                  {/* <SelectItem value="Atrasada">Atrasada</SelectItem> // Removido */}
                 </SelectContent>
               </Select>
             </div>
@@ -380,7 +420,7 @@ const AdminDailyMissions = () => {
                     <TableRow key={mission.id}>
                       <TableCell className="font-medium align-top">{mission.title}</TableCell>
                       <TableCell className="align-top">
-                        {renderUnitProgress(mission)}
+                        {renderUnitProgress(mission, statusFilter)}
                       </TableCell>
                       <TableCell className="align-top">{mission.dayOfWeek}</TableCell>
                       <TableCell className="text-right align-top">
@@ -475,7 +515,7 @@ const AdminDailyMissions = () => {
               </Label>
               <div className="col-span-3">
                 <div className="flex flex-col space-y-2" id="missionTargetUnitIdsGroup">
-                  {units.map((unit) => (
+                  {allUnitsFromHook.map((unit) => (
                     <div key={unit.id} className="flex items-center space-x-2">
                       <Checkbox
                         id={`unit-${unit.id}`}
@@ -495,10 +535,10 @@ const AdminDailyMissions = () => {
                     <div className="flex items-center space-x-2 mt-3 pt-2 border-t border-border">
                       <Checkbox
                         id="select-all-units"
-                        checked={units.length > 0 && targetUnitIds.length === units.length}
+                        checked={allUnitsFromHook.length > 0 && targetUnitIds.length === allUnitsFromHook.length}
                         onCheckedChange={(checked) => {
                           if (checked) {
-                            setTargetUnitIds(units.map(u => u.id));
+                            setTargetUnitIds(allUnitsFromHook.map(u => u.id));
                           } else {
                             setTargetUnitIds([]);
                           }
