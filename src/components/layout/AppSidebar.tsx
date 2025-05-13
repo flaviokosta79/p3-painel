@@ -9,7 +9,7 @@ import {
   SidebarMenuButton,
   SidebarMenuItem
 } from "@/components/ui/sidebar";
-import { Home, File, Users, FileText, Settings, Archive } from "lucide-react";
+import { Home, File, Users, FileText, Settings, Archive, LayoutList } from "lucide-react";
 import { NavLink } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 import brazilianFlag from "@/assets/brazilian-flag.svg";
@@ -81,6 +81,15 @@ export function AppSidebar() {
               <SidebarGroupLabel>Administração</SidebarGroupLabel>
               <SidebarGroupContent>
                 <SidebarMenu>
+                  <SidebarMenuItem>
+                    <SidebarMenuButton asChild>
+                      <NavLink to="/admin/missions" className="w-full">
+                        <LayoutList className="h-5 w-5" />
+                        <span>Gestão de Missões Diárias</span>
+                      </NavLink>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                  
                   <SidebarMenuItem>
                     <SidebarMenuButton asChild>
                       <NavLink to="/admin/documents" className="w-full">
