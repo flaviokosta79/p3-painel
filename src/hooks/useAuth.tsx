@@ -1,4 +1,3 @@
-
 import { createContext, useContext, useState, ReactNode, useEffect } from 'react';
 
 // Tipos
@@ -15,6 +14,7 @@ export interface User {
   email: string;
   role: UserRole;
   unit: Unit;
+  isAdmin: boolean; // Nova propriedade
 }
 
 interface AuthContextType {
@@ -79,7 +79,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             name: foundUser.name,
             email: foundUser.email,
             role: foundUser.role,
-            unit: foundUser.unit
+            unit: foundUser.unit,
+            isAdmin: foundUser.role === 'admin' // Adiciona a nova propriedade
           };
           
           // Armazena no estado e localStorage
@@ -111,7 +112,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           name: 'Admin Padrão',
           email: 'admin@pmerj.gov.br',
           role: 'admin',
-          unit: { id: '1', name: 'Comando Central' }
+          unit: { id: '1', name: 'Comando Central' },
+          isAdmin: true // Adiciona a nova propriedade
         };
         
         setUser(defaultAdmin);

@@ -16,6 +16,15 @@ export interface Mission {
   updatedAt?: string; // Adicionado
   lastUpdatedById?: string; // Adicionado (ID do usuário que atualizou por último)
   lastUpdatedByName?: string; // Adicionado (Nome do usuário que atualizou por último)
+  submittedFile?: {
+    name: string;
+    type: string;
+    size: number;
+    // storageUrl?: string; // Futuramente, para o link do arquivo armazenado
+    uploadedById: User['id'];
+    uploadedByName: User['name'];
+    uploadedAt: string; // ISO string
+  } | null;
   // submittedDocumentIds?: string[]; // Futura melhoria
 }
 

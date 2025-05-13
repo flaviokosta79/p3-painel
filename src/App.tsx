@@ -24,6 +24,7 @@ import AdminEditUser from "./pages/AdminEditUser";
 import NotFound from "./pages/NotFound";
 import PaginaExemplo from "./pages/PaginaExemplo";
 import AdminDailyMissions from "./pages/AdminDailyMissions";
+import { UserDailyMissions } from "./pages/UserDailyMissions";
 
 const queryClient = new QueryClient();
 
@@ -131,6 +132,14 @@ const App = () => (
                       element={
                         <ProtectedRoute requiredRole="admin">
                           <AdminDailyMissions />
+                        </ProtectedRoute>
+                      }
+                    />
+                    <Route
+                      path="/daily-missions"
+                      element={
+                        <ProtectedRoute>
+                          <UserDailyMissions />
                         </ProtectedRoute>
                       }
                     />

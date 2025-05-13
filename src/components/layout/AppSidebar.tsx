@@ -70,6 +70,16 @@ export function AppSidebar() {
                   </NavLink>
                 </SidebarMenuButton>
               </SidebarMenuItem>
+
+              {/* Item de Menu para Missões Diárias do Usuário */}
+              <SidebarMenuItem>
+                <SidebarMenuButton asChild>
+                  <NavLink to="/daily-missions" className="w-full">
+                    <LayoutList className="h-5 w-5" /> 
+                    <span>Minhas Missões Diárias</span>
+                  </NavLink>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>
