@@ -30,9 +30,14 @@ import {
   TableHeader, 
   TableRow 
 } from "@/components/ui/table";
-import { Search, Plus, Trash2, CalendarIcon, Edit, CheckCircle2, XCircle, AlertCircle, Clock, HelpCircle, MoreHorizontal, Upload } from "lucide-react"; 
+import { Search, Plus, Trash2, CalendarIcon, Edit, CheckCircle2, XCircle, AlertCircle, Clock, HelpCircle, MoreHorizontal, Upload, Pencil } from "lucide-react"; 
 import { useToast } from "@/components/ui/use-toast";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"; 
+import { 
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"; 
 import { Calendar } from "@/components/ui/calendar";
 import { format, parseISO } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
@@ -50,6 +55,12 @@ import {
 } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from "@/components/ui/accordion";
 
 const AdminDailyMissions = () => {
   const { missions, loading: loadingMissions, addMission, deleteMission, updateMission, updateUnitMissionStatus, setUnitMissionFile, clearUnitMissionFile } = useMissions(); 
@@ -252,14 +263,14 @@ const AdminDailyMissions = () => {
           }
 
           return (
-            <Popover key={up.unitId}> 
-              <PopoverTrigger asChild>
+            <DropdownMenu key={up.unitId}> 
+              <DropdownMenuTrigger asChild>
                 <Badge variant="outline" className={`cursor-pointer ${badgeClasses}`}> 
                   {unitName}
                 </Badge>
-              </PopoverTrigger>
+              </DropdownMenuTrigger>
               {currentUser && (
-                <PopoverContent className="w-56 p-2">
+                <DropdownMenuContent className="w-56 p-2">
                   <p className="text-xs text-muted-foreground mb-1">Ações para: {getUnitNameById(up.unitId) || unitName}</p>
                   <p className="text-sm font-semibold mb-2">Status Atual: {up.status}</p>
                   <Select 
@@ -304,9 +315,9 @@ const AdminDailyMissions = () => {
                         <Trash2 className="mr-1 h-3 w-3" /> Remover Arquivo: {up.submittedFile.name.substring(0,15)}...
                       </Button>
                   )}
-                </PopoverContent>
+                </DropdownMenuContent>
               )}
-            </Popover>
+            </DropdownMenu>
           );
         })}
       </div>
@@ -354,8 +365,26 @@ const AdminDailyMissions = () => {
     return new Date(b.creationDate).getTime() - new Date(a.creationDate).getTime();
   });
 
+  const daysOfWeek: DayOfWeek[] = ["Segunda-feira", "Terça-feira", "Quarta-feira", "Quinta-feira", "Sexta-feira", "Sábado", "Domingo"];
+
+  // Agrupa missões por dia para o Accordion
+  const daysOrder: DayOfWeek[] = ["Segunda-feira", "Terça-feira", "Quarta-feira", "Quinta-feira", "Sexta-feira", "Sábado", "Domingo"];
+  const daysWithFilteredMissions = Array.from(new Set(sortedMissions.map(m => m.dayOfWeek)))
+    .sort((a, b) => daysOrder.indexOf(a) - daysOrder.indexOf(b));
+
+  // Função para renderizar o cabeçalho da tabela interna do Accordion
+  const renderInnerTableHeader = () => (
+    <TableHeader>
+      <TableRow>
+        <TableHead className="min-w-[200px] pl-4">Título</TableHead>
+        <TableHead className="min-w-[300px]">Unidade(s) Alvo e Progresso</TableHead>
+        <TableHead className="text-right min-w-[100px] pr-4">Ações Gerais</TableHead>
+      </TableRow>
+    </TableHeader>
+  );
+
   if (loadingMissions || loadingUsers) {
-    return <MainLayout><p>Carregando dados...</p></MainLayout>;
+    return <MainLayout><div className="flex justify-center items-center h-64"><p>Carregando dados...</p></div></MainLayout>;
   }
 
   return (
@@ -406,55 +435,65 @@ const AdminDailyMissions = () => {
               </Select>
             </div>
             <div className="max-h-[600px] overflow-y-auto">
-              {filteredMissions.length === 0 ? (
+              {sortedMissions.length === 0 ? (
                 <p className="text-center text-gray-500 py-4">Nenhuma missão encontrada com os filtros atuais.</p>
               ) : (
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead className="w-[25%]">Título</TableHead> 
-                    <TableHead className="w-[40%]">Unidade(s) Alvo e Progresso</TableHead> 
-                    <TableHead className="w-[15%]">Dia</TableHead> 
-                    <TableHead className="w-[20%]">Ações Gerais</TableHead> 
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {filteredMissions.map((mission) => (
-                    <TableRow key={mission.id}>
-                      <TableCell className="font-medium align-top">{mission.title}</TableCell>
-                      <TableCell className="align-top">
-                        {renderUnitProgress(mission, statusFilter)}
-                      </TableCell>
-                      <TableCell className="align-top">{mission.dayOfWeek}</TableCell>
-                      <TableCell className="text-right align-top">
-                        <Popover>
-                          <PopoverTrigger asChild>
-                            <Button variant="ghost" size="sm">...</Button>
-                          </PopoverTrigger>
-                          <PopoverContent className="w-56">
-                            <div className="grid gap-4">
-                              <div className="space-y-2">
-                                <h4 className="font-medium leading-none">Opções da Missão</h4>
-                                <p className="text-xs text-muted-foreground">
-                                  Edite ou exclua a missão globalmente.
-                                </p>
-                              </div>
-                              <div className="grid gap-2">
-                                <Button variant="outline" size="sm" onClick={() => handleOpenCreateDialog(mission)}>
-                                  <Edit className="mr-2 h-4 w-4" /> Editar Missão (Geral)
-                                </Button>
-                                <Button variant="destructive" size="sm" onClick={() => handleDeleteMission(mission.id)}>
-                                  <Trash2 className="mr-2 h-4 w-4" /> Excluir Missão (Geral)
-                                </Button>
-                              </div>
-                            </div>
-                          </PopoverContent>
-                        </Popover>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
+              <Accordion type="multiple" className="w-full space-y-2">
+                {daysWithFilteredMissions.map((day) => {
+                  const missionsForThisDay = sortedMissions.filter(
+                    (mission) => mission.dayOfWeek === day
+                  );
+
+                  return (
+                    <AccordionItem value={day} key={day} className="border rounded-md shadow-sm hover:shadow-md transition-shadow bg-card">
+                      <AccordionTrigger className="px-4 py-3 text-base font-semibold hover:no-underline flex justify-between w-full items-center data-[state=closed]:rounded-md data-[state=open]:rounded-t-md">
+                        <span className="flex-grow text-left">{day}</span>
+                        <Badge variant="secondary">{missionsForThisDay.length} {missionsForThisDay.length === 1 ? 'missão' : 'missões'}</Badge>
+                      </AccordionTrigger>
+                      <AccordionContent className="p-0 border-t data-[state=closed]:rounded-b-md">
+                        <div className="overflow-x-auto">
+                          <Table className="mb-0">
+                            {renderInnerTableHeader()}
+                            <TableBody>
+                              {missionsForThisDay.map((mission) => (
+                                <TableRow key={mission.id}>
+                                  <TableCell className="py-3 font-medium align-top pl-4">
+                                    <div className="font-medium">{mission.title}</div>
+                                    {mission.description && <div className="text-xs text-muted-foreground whitespace-pre-wrap break-words">{mission.description}</div>}
+                                  </TableCell>
+                                  <TableCell className="py-3 align-top">
+                                    {renderUnitProgress(mission, statusFilter)}
+                                  </TableCell>
+                                  <TableCell className="py-3 text-right align-top pr-4">
+                                    <DropdownMenu>
+                                      <DropdownMenuTrigger asChild>
+                                        <Button variant="ghost" className="h-8 w-8 p-0">
+                                          <span className="sr-only">Abrir menu</span>
+                                          <MoreHorizontal className="h-4 w-4" />
+                                        </Button>
+                                      </DropdownMenuTrigger>
+                                      <DropdownMenuContent align="end">
+                                        <DropdownMenuItem onClick={() => handleOpenCreateDialog(mission)}> {/* handleOpenCreateDialog com missão abre em modo edição */}
+                                          <Pencil className="mr-2 h-4 w-4" />
+                                          <span>Editar</span>
+                                        </DropdownMenuItem>
+                                        <DropdownMenuItem onClick={() => handleDeleteMission(mission.id)} className="text-red-600 focus:text-red-600 focus:bg-red-50">
+                                          <Trash2 className="mr-2 h-4 w-4" />
+                                          <span>Excluir</span>
+                                        </DropdownMenuItem>
+                                      </DropdownMenuContent>
+                                    </DropdownMenu>
+                                  </TableCell>
+                                </TableRow>
+                              ))}
+                            </TableBody>
+                          </Table>
+                        </div>
+                      </AccordionContent>
+                    </AccordionItem>
+                  );
+                })}
+              </Accordion>
               )}
             </div>
           </CardContent>
