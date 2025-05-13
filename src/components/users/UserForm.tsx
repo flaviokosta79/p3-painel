@@ -1,4 +1,3 @@
-
 import { useState, FormEvent } from "react";
 import { useNavigate } from "react-router-dom";
 import { useUsers, UserData } from "@/hooks/useUsers";
@@ -27,11 +26,11 @@ export function UserForm({ user, isEditing = false }: UserFormProps) {
   const units = getUnits();
   
   // Estados do formulário
-  const [name, setName] = useState(user?.name || "");
+  const [name, setName] = useState(user?.nome || "");
   const [email, setEmail] = useState(user?.email || "");
   const [password, setPassword] = useState("");
-  const [role, setRole] = useState<UserRole>(user?.role || "user");
-  const [unitId, setUnitId] = useState(user?.unit.id || "");
+  const [role, setRole] = useState<UserRole>(user?.perfil || "user");
+  const [unitId, setUnitId] = useState(user?.unidadeId || "");
   const [isLoading, setIsLoading] = useState(false);
   const [useGeneratedPassword, setUseGeneratedPassword] = useState(true);
   const [changePassword, setChangePassword] = useState(false);
@@ -101,15 +100,15 @@ export function UserForm({ user, isEditing = false }: UserFormProps) {
       if (isEditing && user) {
         // Atualizar usuário existente
         const updateData: any = {
-          name,
+          nome: name,
           email,
-          role,
-          unit: selectedUnit,
+          perfil: role,
+          unidade: selectedUnit,
         };
         
         // Adicionar senha se estiver alterando
-        if (changePassword) {
-          updateData.password = password;
+        if (changePassword && password) {
+          updateData.senha = password;
         }
         
         success = await updateUser(user.id, updateData);
@@ -126,12 +125,12 @@ export function UserForm({ user, isEditing = false }: UserFormProps) {
         const userPassword = useGeneratedPassword ? generateTemporaryPassword() : password;
         
         success = await addUser({
-          name,
+          nome: name,
           email,
-          password: userPassword,
-          role,
-          unit: selectedUnit,
-          active: true,
+          senha: userPassword,
+          perfil: role,
+          unidade: selectedUnit,
+          // 'ativo' é definido por padrão em addUser
         });
         
         // Em um sistema real, enviaríamos uma senha temporária ao usuário por email se for gerada automaticamente

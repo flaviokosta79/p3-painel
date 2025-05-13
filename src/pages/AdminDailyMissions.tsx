@@ -1,26 +1,44 @@
 import { useState, type FormEvent, useEffect, useCallback } from "react";
-import { useMissions, type Mission, type MissionStatus, type DayOfWeek } from "@/hooks/useMissions"; 
+import { useMissions, type Mission, type MissionStatus, type DayOfWeek, type UnitMissionProgress } from "@/hooks/useMissions"; 
 import { useUsers, type Unit } from "@/hooks/useUsers"; 
 import { useAuth } from "@/hooks/useAuth";
 import { MainLayout } from "@/components/layout/MainLayout";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
-import { 
-  Select, 
-  SelectContent, 
-  SelectItem, 
-  SelectTrigger, 
-  SelectValue 
-} from "@/components/ui/select";
+import { Badge } from "@/components/ui/badge"; 
 import { 
   Card, 
-  CardContent,
-  CardHeader,
-  CardTitle,
-  CardDescription
+  CardContent, 
+  CardDescription, 
+  CardFooter, 
+  CardHeader, 
+  CardTitle 
 } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { 
+  Table, 
+  TableBody, 
+  TableCell, 
+  TableHead, 
+  TableHeader, 
+  TableRow 
+} from "@/components/ui/table";
+import { Search, Plus, Trash2, CalendarIcon, Edit, CheckCircle2, XCircle, AlertCircle, Clock, HelpCircle, MoreHorizontal, Upload } from "lucide-react"; 
+import { useToast } from "@/components/ui/use-toast";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"; 
+import { Calendar } from "@/components/ui/calendar";
+import { format, parseISO } from 'date-fns';
+import { ptBR } from 'date-fns/locale';
+import React from 'react';
+// Imports para Dialog, Textarea e Checkbox
+import {
   Dialog,
   DialogContent,
   DialogDescription,
@@ -28,54 +46,50 @@ import {
   DialogHeader,
   DialogTitle,
   DialogTrigger,
-  DialogClose
+  DialogClose,
 } from "@/components/ui/dialog";
-import { Label } from "@/components/ui/label";
-import { 
-  Table,
-  TableBody,
-  TableCaption,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
-import { Search, Plus, Trash2, CalendarIcon, Edit } from "lucide-react"; 
-import { useToast } from "@/components/ui/use-toast";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"; 
-import { Calendar } from "@/components/ui/calendar"; 
-import { format } from "date-fns"; 
-import { ptBR } from "date-fns/locale"; 
-import { cn } from "@/lib/utils"; 
-import { Badge } from "@/components/ui/badge";
+import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
 
 const AdminDailyMissions = () => {
-  const { missions, loading: loadingMissions, addMission, deleteMission, updateMissionStatus, updateMission } = useMissions(); 
+  const { missions, loading: loadingMissions, addMission, deleteMission, updateMission, updateUnitMissionStatus, setUnitMissionFile, clearUnitMissionFile } = useMissions(); 
   const { units, users, getUnitNameById, loading: loadingUsers } = useUsers(); 
   const { toast } = useToast();
-  const { user: currentUser } = useAuth(); 
+  const { user: currentUser } = useAuth();
 
-  const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
-  const [editingMission, setEditingMission] = useState<Mission | null>(null);
   const [missionTitle, setMissionTitle] = useState("");
   const [missionDescription, setMissionDescription] = useState("");
-  const [missionTargetUnitIds, setMissionTargetUnitIds] = useState<string[]>([]);
-  const [missionDayOfWeek, setMissionDayOfWeek] = useState<DayOfWeek | null>(null);
-  const [submitError, setSubmitError] = useState<string | null>(null);
+  const [targetUnitIds, setTargetUnitIds] = useState<string[]>([]);
+  const [dayOfWeek, setDayOfWeek] = useState<DayOfWeek>('Segunda-feira');
+
+  const [editingMission, setEditingMission] = useState<Mission | null>(null);
+  const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const [searchTerm, setSearchTerm] = useState("");
-  const [unitFilter, setUnitFilter] = useState("all");
-  const [statusFilter, setStatusFilter] = useState<MissionStatus | "all">("all");
+  const [unitFilter, setUnitFilter] = useState<string>("all"); 
+  const [statusFilter, setStatusFilter] = useState<MissionStatus | "all">("all"); 
+
+  const getUnitStatusColor = (status: MissionStatus): string => {
+    switch (status) {
+      case "Cumprida": return "#4CAF50"; 
+      case "Pendente": return "#FFC107"; 
+      case "Não Cumprida": return "#F44336"; 
+      case "Atrasada": return "#FF9800"; 
+      default: return "#9E9E9E"; 
+    }
+  };
+
+  const getUnitStatusText = (status: MissionStatus): string => {
+    return status;
+  };
 
   const resetDialogForm = () => {
+    setEditingMission(null);
     setMissionTitle("");
     setMissionDescription("");
-    setMissionTargetUnitIds([]);
-    setMissionDayOfWeek(null);
-    setSubmitError(null);
-    setEditingMission(null);
-    setIsCreateDialogOpen(false);
+    setTargetUnitIds([]);
+    setDayOfWeek('Segunda-feira');
   };
 
   const handleOpenCreateDialog = (mission: Mission | null = null) => {
@@ -83,144 +97,198 @@ const AdminDailyMissions = () => {
       setEditingMission(mission);
       setMissionTitle(mission.title);
       setMissionDescription(mission.description || "");
-      setMissionTargetUnitIds(mission.targetUnitIds);
-      setMissionDayOfWeek(mission.dayOfWeek);
+      setTargetUnitIds(mission.targetUnitIds);
+      setDayOfWeek(mission.dayOfWeek);
     } else {
-      setEditingMission(null);
-      setMissionTitle("");
-      setMissionDescription("");
-      setMissionTargetUnitIds([]);
-      setMissionDayOfWeek(null);
+      resetDialogForm();
     }
     setIsCreateDialogOpen(true);
   };
 
-  const handleCreateOrUpdateMission = async (e: FormEvent) => {
-    e.preventDefault();
-    if (!missionTitle || !missionDayOfWeek) {
-      setSubmitError("Título e Dia da Semana são obrigatórios.");
+  const handleCreateOrUpdateMission = async (event: FormEvent) => {
+    event.preventDefault();
+    if (!currentUser) {
+      toast({ title: "Erro", description: "Usuário não autenticado.", variant: "destructive" });
       return;
     }
-
-    setSubmitError(null);
-    let success = false;
+    setIsSubmitting(true);
 
     if (editingMission) {
-      // Preservar dados de criação originais e atualizar o resto
-      const updatedMissionData: Mission = {
-        ...editingMission, // Isso traz id, createdBy, createdByName, creationDate
+      const success = await updateMission({ 
+        id: editingMission.id,
         title: missionTitle,
         description: missionDescription,
-        targetUnitIds: missionTargetUnitIds,
-        dayOfWeek: missionDayOfWeek,
-        // lastUpdatedById, lastUpdatedByName, updatedAt serão atualizados em updateMission
-      };
-      success = await updateMission(updatedMissionData);
-    } else {
-      const missionData = {
-        title: missionTitle,
-        description: missionDescription,
-        targetUnitIds: missionTargetUnitIds,
-        dayOfWeek: missionDayOfWeek,
-        // createdBy e createdByName serão definidos em addMission
-      };
-      success = await addMission(missionData); // Passar apenas os campos necessários
-    }
-
-    if (success) {
-      toast({
-        title: editingMission ? "Missão Atualizada!" : "Missão(ões) Criada(s)!",
-        description: editingMission 
-          ? `A missão "${missionTitle}" foi atualizada.` 
-          : `Nova(s) missão(ões) "${missionTitle}" criada(s) para as unidades selecionadas.`,
+        targetUnitIds: targetUnitIds,
+        dayOfWeek: dayOfWeek,
       });
-      resetDialogForm();
-    } else {
-      toast({
-        title: "Erro",
-        description: editingMission ? "Não foi possível atualizar a missão." : "Não foi possível criar a(s) missão(ões).",
-        variant: "destructive",
-      });
-      setSubmitError(editingMission ? "Falha ao atualizar missão." : "Falha ao criar missão(ões).");
-    }
-  };
-
-  const handleDeleteMission = async (missionId: string, missionTargetUnitId: string) => {
-    if (window.confirm("Tem certeza que deseja excluir esta instância da missão?")) {
-      const success = await deleteMission(missionId); 
       if (success) {
-        toast({ title: "Missão Excluída", description: "A instância da missão foi removida.", });
+        toast({ title: "Sucesso", description: "Missão atualizada." });
       } else {
-        toast({ title: "Erro", description: "Não foi possível excluir a instância da missão.", variant: "destructive" });
+        toast({ title: "Erro", description: "Não foi possível atualizar a missão.", variant: "destructive" });
+      }
+    } else {
+      const success = await addMission({
+        title: missionTitle,
+        description: missionDescription,
+        targetUnitIds: targetUnitIds,
+        dayOfWeek: dayOfWeek,
+      });
+      if (success) {
+        toast({ title: "Sucesso", description: "Missão criada." });
+      } else {
+        toast({ title: "Erro", description: "Não foi possível criar a missão.", variant: "destructive" });
       }
     }
+    setIsSubmitting(false);
+    setIsCreateDialogOpen(false);
+    resetDialogForm();
   };
 
-  const handleMissionStatusChange = async (missionId: string, newStatus: MissionStatus) => {
-    if (!currentUser) { 
-      toast({ title: "Erro de Autenticação", description: "Você precisa estar logado para alterar o status da missão.", variant: "destructive" });
+  const handleDeleteMission = async (missionId: string) => {
+    const success = await deleteMission(missionId);
+    if (success) {
+      toast({ title: "Sucesso", description: "Missão excluída." });
+    } else {
+      toast({ title: "Erro", description: "Não foi possível excluir a missão.", variant: "destructive" });
+    }
+  };
+
+  const handleUnitMissionStatusChange = async (missionId: string, unitId: string, newStatus: MissionStatus) => {
+    if (!currentUser) {
+      toast({ title: "Erro de Autenticação", description: "Você precisa estar logado.", variant: "destructive" });
       return;
     }
-    try {
-      await updateMissionStatus(missionId, newStatus, currentUser.id); 
-      toast({ title: "Status da Missão Atualizado", description: `A missão foi marcada como ${newStatus}.` });
-    } catch (error) {
-      console.error("Erro ao atualizar status da missão:", error);
-      toast({ title: "Erro", description: "Não foi possível atualizar o status da missão.", variant: "destructive" });
+    console.log(`Mudando status para ${newStatus} para unidade ${unitId} na missão ${missionId}`);
+    const success = await updateUnitMissionStatus(missionId, unitId, newStatus, currentUser.id);
+    if (success) {
+      toast({ title: "Status Atualizado", description: `Status da unidade alterado para ${newStatus}.` });
+    } else {
+      toast({ title: "Erro ao Atualizar Status", variant: "destructive" });
     }
   };
 
-  const getStatusColor = (status: MissionStatus): string => {
-    switch (status) {
-      case "Pendente": return "#fdba74"; 
-      case "Cumprida": return "#86efac"; 
-      case "Não Cumprida": return "#fca5a5"; 
-      case "Atrasada": return "#facc15"; 
-      default: return "#e5e7eb"; 
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const fileInputRef = React.useRef<HTMLInputElement>(null);
+
+  const handleFileUploadForUnit = async (missionId: string, unitId: string, file: File) => {
+    if (!currentUser) {
+      toast({ title: "Erro de Autenticação", variant: "destructive" });
+      return;
     }
-  };
-  
-  const getStatusText = (status: MissionStatus): string => {
-    return status; 
-  };
-  
-  const formatDateDisplay = (dateString?: string) => {
-    if (!dateString) return "N/A";
-    try {
-      return format(new Date(dateString), "dd/MM/yyyy HH:mm", { locale: ptBR });
-    } catch (error) {
-      return "Data inválida";
+    if (!file) {
+      toast({ title: "Nenhum arquivo selecionado", variant: "destructive" });
+      return;
     }
-  };
-  const formatDateOnly = (dateString?: string) => {
-    if (!dateString) return "N/A";
-    try {
-      return format(new Date(dateString), "dd/MM/yyyy", { locale: ptBR });
-    } catch (error) {
-      return "Data inválida";
+    console.log(`Enviando arquivo ${file.name} para unidade ${unitId} na missão ${missionId}`);
+    const success = await setUnitMissionFile(missionId, unitId, file, currentUser);
+    if (success) {
+      toast({ title: "Upload Concluído", description: `Arquivo ${file.name} enviado e status atualizado.` });
+    } else {
+      toast({ title: "Erro no Upload", variant: "destructive" });
     }
+    setSelectedFile(null); 
+    if (fileInputRef.current) fileInputRef.current.value = ""; 
   };
-  
-  const getDisplayableUnitNames = useCallback((targetUnitIds: string[]): string => {
+
+  const renderUnitProgress = (mission: Mission) => {
     if (loadingUsers || !units || units.length === 0) {
-      return "Carregando unidades...";
-    }
-    if (!targetUnitIds || targetUnitIds.length === 0) {
-      return "Nenhuma unidade alvo";
+      return <p>Carregando unidades...</p>;
     }
 
-    const allUnitIdsFromContext = units.map(u => u.id);
-    const allSelected = targetUnitIds.length === allUnitIdsFromContext.length && 
-                        allUnitIdsFromContext.every(id => targetUnitIds.includes(id));
+    const isTargetingAllUnits = mission.targetUnitIds.length === units.length && units.every(u => mission.targetUnitIds.includes(u.id));
 
-    if (allSelected) {
-      return "Todas as Unidades";
+    let displayUnits: {id: string, name: string}[] = [];
+    if(isTargetingAllUnits && mission.unitProgress.length !== units.length) {
+      displayUnits = units.map(u => ({id: u.id, name: u.name}));
+    } else {
+      displayUnits = mission.targetUnitIds.map(id => ({ id, name: getUnitNameById(id) || `ID (${id}) Desc.`}) );
     }
     
-    return targetUnitIds
-      .map(id => getUnitNameById(id) || `ID (${id}) Desc.`)
-      .join(', ');
-  }, [units, getUnitNameById, loadingUsers]);
+    if (displayUnits.length === 0) return <p>Nenhuma unidade alvo.</p>;
+
+    return (
+      <div className="flex flex-wrap gap-2 mt-1"> 
+        {displayUnits.map(unit => {
+          const progress = mission.unitProgress.find(up => up.unitId === unit.id);
+          const status = progress?.status || 'Pendente'; 
+          
+          let badgeVariant: "default" | "secondary" | "destructive" | "outline" = "secondary";
+          let badgeClassName = "";
+
+          switch (status) {
+            case "Cumprida":
+              badgeClassName = "bg-green-500 hover:bg-green-600 text-white border-green-600";
+              break;
+            case "Pendente":
+            case "Atrasada":
+            case "Não Cumprida":
+              badgeClassName = "bg-red-500 hover:bg-red-600 text-white border-red-600";
+              break;
+            default:
+              badgeClassName = "bg-gray-400 hover:bg-gray-500 text-white border-gray-500"; 
+          }
+
+          return (
+            <Popover key={unit.id}> 
+              <PopoverTrigger asChild>
+                <Badge variant="outline" className={`cursor-pointer ${badgeClassName}`}> 
+                  {unit.name}
+                </Badge>
+              </PopoverTrigger>
+              {currentUser && (
+                <PopoverContent className="w-56 p-2">
+                  <p className="text-xs text-muted-foreground mb-1">Ações para: {getUnitNameById(unit.id) || unit.name}</p>
+                  <p className="text-sm font-semibold mb-2">Status Atual: {status}</p>
+                  <Select 
+                    defaultValue={status} 
+                    onValueChange={async (newStatusVal: MissionStatus) => await handleUnitMissionStatusChange(mission.id, unit.id, newStatusVal)}                       
+                  >
+                    <SelectTrigger className="h-8 text-xs mb-1">Mudar Status</SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="Pendente">Pendente</SelectItem>
+                      <SelectItem value="Cumprida">Cumprida</SelectItem>
+                      <SelectItem value="Não Cumprida">Não Cumprida</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  {status !== 'Cumprida' && (
+                    <Button 
+                      variant="outline" 
+                      size="sm" 
+                      className="w-full text-xs mt-1"
+                      onClick={() => {
+                        if (fileInputRef.current) {
+                          fileInputRef.current.setAttribute('data-mission-id', mission.id);
+                          fileInputRef.current.setAttribute('data-unit-id', unit.id);
+                          fileInputRef.current.click();
+                        }
+                      }}
+                    >
+                      <Upload className="mr-1 h-3 w-3" /> Enviar Arquivo
+                    </Button>
+                  )}
+                  {progress?.submittedFile && (
+                     <Button 
+                        variant="outline" 
+                        size="sm" 
+                        className="w-full text-xs mt-1"
+                        onClick={async () => {
+                            if (!currentUser) return;
+                            const success = await clearUnitMissionFile(mission.id, unit.id, currentUser);
+                            if(success) toast({title: "Arquivo Removido"});
+                            else toast({title: "Erro ao remover arquivo", variant: "destructive"});
+                        }}
+                      >
+                        <Trash2 className="mr-1 h-3 w-3" /> Remover Arquivo: {progress.submittedFile.name.substring(0,15)}...
+                      </Button>
+                  )}
+                </PopoverContent>
+              )}
+            </Popover>
+          );
+        })}
+      </div>
+    );
+  };
 
   const filteredMissions = missions
     .filter((mission) => {
@@ -229,11 +297,7 @@ const AdminDailyMissions = () => {
     })
     .filter((mission) => {
       if (statusFilter === "all") return true;
-      if (statusFilter === "Pendente" && mission.status === "Pendente") return true;
-      if (statusFilter === "Cumprida" && mission.status === "Cumprida") return true;
-      if (statusFilter === "Não Cumprida" && mission.status === "Não Cumprida") return true;
-      if (statusFilter === "Atrasada" && mission.status === "Atrasada") return true;
-      return false;
+      return mission.unitProgress.some(up => up.status === statusFilter);
     })
     .filter((mission) => {
       if (!searchTerm) return true;
@@ -257,12 +321,10 @@ const AdminDailyMissions = () => {
         if (!isOpen) resetDialogForm();
         setIsCreateDialogOpen(isOpen);
       }}>
-        {/* O Card agora está DENTRO do Dialog principal */}
         <Card className="mb-4">
           <CardHeader className="px-4 py-1">
             <div className="flex justify-between items-center">
               <CardTitle>Gerenciar Missões Semanais</CardTitle>
-              {/* Este DialogTrigger agora está dentro do escopo do Dialog pai */}
               <DialogTrigger asChild>
                 <Button onClick={() => handleOpenCreateDialog()}>
                   <Plus className="mr-2 h-4 w-4" /> Criar Missão Semanal
@@ -271,29 +333,25 @@ const AdminDailyMissions = () => {
             </div>
           </CardHeader>
           <CardContent className="p-2">
-            <div className="flex flex-col sm:flex-row gap-2 mb-4">
-              <Input 
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-2 mb-2">
+              <Input
                 placeholder="Buscar por título, descrição, unidade..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="max-w-xs"
+                className="md:col-span-1"
               />
               <Select value={unitFilter} onValueChange={setUnitFilter}>
-                <SelectTrigger className="w-[180px]">
-                  <SelectValue placeholder="Filtrar por unidade" />
+                <SelectTrigger className="text-xs">
+                  <SelectValue placeholder="Filtrar por Unidade Alvo" />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">Todas as Unidades</SelectItem>
-                  {units.map((unit) => (
-                    <SelectItem key={unit.id} value={unit.id}>
-                      {unit.name}
-                    </SelectItem>
-                  ))}
+                  {units.map(unit => <SelectItem key={unit.id} value={unit.id}>{unit.name}</SelectItem>)}
                 </SelectContent>
               </Select>
               <Select value={statusFilter} onValueChange={(value) => setStatusFilter(value as MissionStatus | "all")}>
-                <SelectTrigger className="w-[180px]">
-                  <SelectValue placeholder="Filtrar por status" />
+                <SelectTrigger className="text-xs">
+                  <SelectValue placeholder="Filtrar por Status" />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">Todos os Status</SelectItem>
@@ -304,88 +362,75 @@ const AdminDailyMissions = () => {
                 </SelectContent>
               </Select>
             </div>
-
-            {(loadingMissions || loadingUsers) && <p>Carregando missões e usuários...</p>}
-            {(!loadingMissions && !loadingUsers && filteredMissions.length === 0) && (
-              <div className="text-center py-8">
-                <p className="text-gray-500">Nenhuma missão encontrada com os filtros atuais.</p>
-              </div>
-            )}
-
-            {(!loadingMissions && !loadingUsers && filteredMissions.length > 0) && (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead className="w-[20%]">Título</TableHead>
-                  <TableHead className="w-[15%]">Unidade(s) Alvo</TableHead>
-                  <TableHead className="w-[10%]">Dia</TableHead>
-                  <TableHead className="w-[15%]">Status</TableHead>
-                  <TableHead className="w-[15%]">Responsável (Última Atualização)</TableHead>
-                  <TableHead className="w-[15%]">Última Atualização</TableHead>
-                  <TableHead className="text-right w-[10%]">Ações</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {filteredMissions.map((mission) => (
-                  <TableRow key={mission.id}>
-                    <TableCell className="font-medium">{mission.title}</TableCell>
-                    <TableCell>{getDisplayableUnitNames(mission.targetUnitIds)}</TableCell>
-                    <TableCell>{mission.dayOfWeek}</TableCell>
-                    <TableCell>
-                      <Badge style={{ backgroundColor: getStatusColor(mission.status), color: '#000' }}>
-                        {getStatusText(mission.status)}
-                      </Badge>
-                    </TableCell>
-                    <TableCell>{mission.lastUpdatedByName || mission.createdByName || "N/A"}</TableCell>
-                    <TableCell>{formatDateDisplay(mission.updatedAt)}</TableCell>
-                    <TableCell className="text-right">
-                      <Popover>
-                        <PopoverTrigger asChild>
-                          <Button variant="ghost" size="sm">...</Button>
-                        </PopoverTrigger>
-                        <PopoverContent className="w-56">
-                          <div className="grid gap-4">
-                            <div className="space-y-2">
-                              <h4 className="font-medium leading-none">Opções da Missão</h4>
-                              <p className="text-xs text-muted-foreground">
-                                Atualize o status ou edite/exclua a missão.
-                              </p>
-                            </div>
-                            <div className="grid gap-2">
-                              <Select 
-                                defaultValue={mission.status}
-                                onValueChange={async (newStatus: MissionStatus) => {
-                                  await handleMissionStatusChange(mission.id, newStatus);
-                                }}
-                              >
-                                <SelectTrigger>Mudar Status</SelectTrigger>
-                                <SelectContent>
-                                  <SelectItem value="Pendente">Pendente</SelectItem>
-                                  <SelectItem value="Cumprida">Cumprida</SelectItem>
-                                  <SelectItem value="Não Cumprida">Não Cumprida</SelectItem>
-                                  {/* <SelectItem value="Atrasada">Atrasada</SelectItem>  Atrasada deve ser automática */}
-                                </SelectContent>
-                              </Select>
-                              <Button variant="outline" size="sm" onClick={() => handleOpenCreateDialog(mission)}>
-                                <Edit className="mr-2 h-4 w-4" /> Editar Missão
-                              </Button>
-                              <Button variant="destructive" size="sm" onClick={() => handleDeleteMission(mission.id, mission.targetUnitIds[0])}> {/* targetUnitId não existe mais, precisa de ajuste se a lógica de deleção depende de uma única unidade */}
-                                <Trash2 className="mr-2 h-4 w-4" /> Excluir Missão
-                              </Button>
-                            </div>
-                          </div>
-                        </PopoverContent>
-                      </Popover>
-                    </TableCell>
+            <div className="max-h-[600px] overflow-y-auto">
+              {filteredMissions.length === 0 ? (
+                <p className="text-center text-gray-500 py-4">Nenhuma missão encontrada com os filtros atuais.</p>
+              ) : (
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead className="w-[25%]">Título</TableHead> 
+                    <TableHead className="w-[40%]">Unidade(s) Alvo e Progresso</TableHead> 
+                    <TableHead className="w-[15%]">Dia</TableHead> 
+                    <TableHead className="w-[20%]">Ações Gerais</TableHead> 
                   </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-            )}
+                </TableHeader>
+                <TableBody>
+                  {filteredMissions.map((mission) => (
+                    <TableRow key={mission.id}>
+                      <TableCell className="font-medium align-top">{mission.title}</TableCell>
+                      <TableCell className="align-top">
+                        {renderUnitProgress(mission)}
+                      </TableCell>
+                      <TableCell className="align-top">{mission.dayOfWeek}</TableCell>
+                      <TableCell className="text-right align-top">
+                        <Popover>
+                          <PopoverTrigger asChild>
+                            <Button variant="ghost" size="sm">...</Button>
+                          </PopoverTrigger>
+                          <PopoverContent className="w-56">
+                            <div className="grid gap-4">
+                              <div className="space-y-2">
+                                <h4 className="font-medium leading-none">Opções da Missão</h4>
+                                <p className="text-xs text-muted-foreground">
+                                  Edite ou exclua a missão globalmente.
+                                </p>
+                              </div>
+                              <div className="grid gap-2">
+                                <Button variant="outline" size="sm" onClick={() => handleOpenCreateDialog(mission)}>
+                                  <Edit className="mr-2 h-4 w-4" /> Editar Missão (Geral)
+                                </Button>
+                                <Button variant="destructive" size="sm" onClick={() => handleDeleteMission(mission.id)}>
+                                  <Trash2 className="mr-2 h-4 w-4" /> Excluir Missão (Geral)
+                                </Button>
+                              </div>
+                            </div>
+                          </PopoverContent>
+                        </Popover>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+              )}
+            </div>
           </CardContent>
         </Card>
 
-        {/* O DialogContent que mostra o formulário para criar/editar missão */}
+        <input 
+          type="file" 
+          ref={fileInputRef} 
+          className="hidden" 
+          onChange={(e) => {
+            const file = e.target.files?.[0];
+            const missionId = fileInputRef.current?.getAttribute('data-mission-id');
+            const unitId = fileInputRef.current?.getAttribute('data-unit-id');
+            if (file && missionId && unitId) {
+              handleFileUploadForUnit(missionId, unitId, file);
+            }
+          }}
+        />
+
         <DialogContent className="sm:max-w-[525px] p-4">
           <DialogHeader>
             <DialogTitle>{editingMission ? "Editar Missão" : "Criar Nova Missão Semanal"}</DialogTitle>
@@ -403,14 +448,13 @@ const AdminDailyMissions = () => {
               <Textarea id="missionDescription" value={missionDescription} onChange={(e) => setMissionDescription(e.target.value)} className="col-span-3" />
             </div>
 
-            {/* Dia da Semana */}
             <div className="grid grid-cols-4 items-center gap-4">
               <Label htmlFor="missionDayOfWeek" className="text-right">
                 Dia da Semana*
               </Label>
               <Select
-                value={missionDayOfWeek || undefined} 
-                onValueChange={(value: DayOfWeek) => setMissionDayOfWeek(value)}
+                value={dayOfWeek} 
+                onValueChange={(value: DayOfWeek) => setDayOfWeek(value)}
               >
                 <SelectTrigger className="col-span-3">
                   <SelectValue placeholder="Selecione o dia da semana" />
@@ -425,7 +469,6 @@ const AdminDailyMissions = () => {
               </Select>
             </div>
 
-            {/* Unidades Alvo - Múltipla Seleção com Checkboxes */}
             <div className="grid grid-cols-4 items-start gap-4"> 
               <Label htmlFor="missionTargetUnitIdsGroup" className="text-right pt-2"> 
                 Unidade(s) Alvo*
@@ -436,9 +479,9 @@ const AdminDailyMissions = () => {
                     <div key={unit.id} className="flex items-center space-x-2">
                       <Checkbox
                         id={`unit-${unit.id}`}
-                        checked={missionTargetUnitIds.includes(unit.id)}
+                        checked={targetUnitIds.includes(unit.id)}
                         onCheckedChange={(checked) => {
-                          setMissionTargetUnitIds(prev => 
+                          setTargetUnitIds(prev => 
                             checked ? [...prev, unit.id] : prev.filter(id => id !== unit.id)
                           );
                         }}
@@ -452,12 +495,12 @@ const AdminDailyMissions = () => {
                     <div className="flex items-center space-x-2 mt-3 pt-2 border-t border-border">
                       <Checkbox
                         id="select-all-units"
-                        checked={units.length > 0 && missionTargetUnitIds.length === units.length}
+                        checked={units.length > 0 && targetUnitIds.length === units.length}
                         onCheckedChange={(checked) => {
                           if (checked) {
-                            setMissionTargetUnitIds(units.map(u => u.id));
+                            setTargetUnitIds(units.map(u => u.id));
                           } else {
-                            setMissionTargetUnitIds([]);
+                            setTargetUnitIds([]);
                           }
                         }}
                       />
@@ -467,7 +510,6 @@ const AdminDailyMissions = () => {
               </div>
             </div>
 
-            {submitError && <p className="col-span-4 text-red-500 text-sm text-center py-2">{submitError}</p>}
             <DialogFooter>
               <DialogClose asChild><Button type="button" variant="outline">Cancelar</Button></DialogClose>
               <Button type="submit">{editingMission ? "Salvar Alterações" : "Criar Missão Semanal"}</Button>

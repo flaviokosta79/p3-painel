@@ -16,10 +16,10 @@ export interface MockUserData {
 export const usuários: MockUserData[] = [
   {
     id: 'user1',
-    nome: 'Usuário Admin Teste',
+    nome: 'Admin',
     email: 'admin@teste.com',
     perfil: 'admin',
-    unidadeId: '1', // 10º BPM
+    unidadeId: 'cpa5',
     ativo: true,
   },
   {

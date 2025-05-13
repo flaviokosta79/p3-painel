@@ -47,38 +47,47 @@ import { Plus, Search, MoreHorizontal, Edit, Trash, Check, UserX, UserCheck } fr
 import { useNavigate } from "react-router-dom";
 
 const AdminUsersList = () => {
-  const { users, loading, deleteUser, toggleUserStatus } = useUsers();
+  const { users, loading, deleteUser, toggleUserStatus, getUnitNameById } = useUsers();
   const navigate = useNavigate();
   
+  console.log('[AdminUsersList] Usuários recebidos:', users); // Log para verificar usuários no componente
+  if (users && users.length > 0) {
+    const adminUser = users.find(u => u.id === 'user1');
+    if (adminUser) {
+      console.log('[AdminUsersList] Usuário Admin (user1):', adminUser);
+      console.log('[AdminUsersList] Nome da unidade para cpa5:', getUnitNameById('cpa5'));
+      console.log('[AdminUsersList] Nome da unidade para user1.unidadeId:', getUnitNameById(adminUser.unidadeId));
+    }
+  }
+
   const [searchTerm, setSearchTerm] = useState("");
   
   // Filtrar usuários com base na pesquisa
   const filteredUsers = users.filter((user) => {
-    if (
-      searchTerm &&
-      !user.name.toLowerCase().includes(searchTerm.toLowerCase()) &&
-      !user.email.toLowerCase().includes(searchTerm.toLowerCase()) &&
-      !user.unit.name.toLowerCase().includes(searchTerm.toLowerCase())
-    ) {
-      return false;
-    }
-    
-    return true;
+    if (!searchTerm) return true; 
+    const term = searchTerm.toLowerCase();
+    const unitName = getUnitNameById(user.unidadeId)?.toLowerCase() || "";
+
+    return (
+      user.nome.toLowerCase().includes(term) ||
+      user.email.toLowerCase().includes(term) ||
+      unitName.includes(term)
+    );
   });
   
   // Ordenar usuários (ativos primeiro, depois por nome)
   const sortedUsers = [...filteredUsers].sort((a, b) => {
     // Ordenar por status (ativos primeiro)
-    if (a.active && !b.active) return -1;
-    if (!a.active && b.active) return 1;
+    if (a.ativo && !b.ativo) return -1;
+    if (!a.ativo && b.ativo) return 1;
     
     // Ordenar por nome
-    return a.name.localeCompare(b.name);
+    return a.nome.localeCompare(b.nome);
   });
   
-  const handleToggleUserStatus = async (userId: string) => {
+  const handleToggleUserStatus = async (userId: string, currentStatus: boolean) => { 
     try {
-      await toggleUserStatus(userId);
+      await toggleUserStatus(userId, !currentStatus); 
     } catch (error) {
       console.error("Erro ao alterar status do usuário:", error);
     }
@@ -152,17 +161,17 @@ const AdminUsersList = () => {
                   <TableBody>
                     {sortedUsers.map((user) => (
                       <TableRow key={user.id}>
-                        <TableCell className="font-medium">{user.name}</TableCell>
+                        <TableCell className="font-medium">{user.nome}</TableCell>
                         <TableCell>{user.email}</TableCell>
                         <TableCell>
-                          <Badge className={user.role === "admin" ? "bg-pmerj-blue" : "bg-gray-500"}>
-                            {user.role === "admin" ? "Admin" : "Usuário"}
+                          <Badge className={user.perfil === "admin" ? "bg-pmerj-blue" : "bg-gray-500"}>
+                            {user.perfil === "admin" ? "Admin" : "Usuário"}
                           </Badge>
                         </TableCell>
-                        <TableCell>{user.unit.name}</TableCell>
+                        <TableCell>{getUnitNameById(user.unidadeId) || 'N/A'}</TableCell>
                         <TableCell>
-                          <Badge className={user.active ? "bg-green-500" : "bg-red-500"}>
-                            {user.active ? "Ativo" : "Inativo"}
+                          <Badge className={user.ativo ? "bg-green-500" : "bg-red-500"}>
+                            {user.ativo ? "Ativo" : "Inativo"}
                           </Badge>
                         </TableCell>
                         <TableCell>
@@ -185,76 +194,73 @@ const AdminUsersList = () => {
                                     <AlertDialogTrigger asChild>
                                       {/* O DropdownMenuItem é o gatilho real */}
                                       <DropdownMenuItem 
-                                        onSelect={(e) => e.preventDefault()} 
-                                        disabled={user.role === 'admin'} // Desabilita para admin
-                                        className={`flex items-center ${user.role === 'admin' ? "text-muted-foreground cursor-not-allowed" : ""}`} // Estilo para desabilitado e flex
-                                        aria-label={user.active ? "Desativar usuário" : "Ativar usuário"}
+                                        onSelect={(e) => {
+                                          e.preventDefault(); 
+                                          // A ação de toggle é feita no AlertDialogAction
+                                        }}
+                                        disabled={user.perfil === 'admin'} 
+                                        className={`flex items-center ${user.perfil === 'admin' ? "text-muted-foreground cursor-not-allowed" : ""}`} 
+                                        aria-label={user.ativo ? "Desativar usuário" : "Ativar usuário"}
                                       >
-                                        {user.active ? (
-                                          <><UserX className="mr-2 h-4 w-4" /> Desativar</> // GARANTIR TEXTO AQUI
+                                        {user.ativo ? (
+                                          <><UserX className="mr-2 h-4 w-4" /> Desativar</>
                                         ) : (
-                                          <><UserCheck className="mr-2 h-4 w-4" /> Ativar</>  // GARANTIR TEXTO AQUI
+                                          <><UserCheck className="mr-2 h-4 w-4" /> Ativar</>
                                         )}
                                       </DropdownMenuItem>
                                     </AlertDialogTrigger>
                                   </TooltipTrigger>
                                   <TooltipContent side="top" align="center">
-                                    <p>{user.role === 'admin' ? (user.active ? "Admin não pode ser desativado" : "Admin está ativo") : (user.active ? "Desativar Usuário" : "Ativar Usuário")}</p>
+                                    {user.perfil === 'admin' ? "Não é possível alterar o status de administradores" : (user.ativo ? "Desativar este usuário" : "Ativar este usuário")}
                                   </TooltipContent>
                                   <AlertDialogContent>
                                     <AlertDialogHeader>
-                                      <AlertDialogTitle>
-                                        {user.active ? "Desativar Usuário" : "Ativar Usuário"}
-                                      </AlertDialogTitle>
+                                      <AlertDialogTitle>Confirmar alteração de status</AlertDialogTitle>
                                       <AlertDialogDescription>
-                                        {user.active
-                                          ? `Tem certeza que deseja desativar o usuário "${user.name}"? Ele não poderá mais acessar o sistema.`
-                                          : `Tem certeza que deseja ativar o usuário "${user.name}"? Ele poderá acessar o sistema novamente.`}
+                                        Você tem certeza que deseja {user.ativo ? "desativar" : "ativar"} o usuário {user.nome}?
                                       </AlertDialogDescription>
                                     </AlertDialogHeader>
                                     <AlertDialogFooter>
                                       <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                                      <AlertDialogAction
-                                        className={user.active ? "bg-orange-500 hover:bg-orange-600" : "bg-green-500 hover:bg-green-600"}
-                                        onClick={() => handleToggleUserStatus(user.id)}
-                                      >
-                                        {user.active ? "Desativar" : "Ativar"}
+                                      <AlertDialogAction onClick={() => handleToggleUserStatus(user.id, user.ativo)}> 
+                                        {user.ativo ? "Desativar" : "Ativar"}
                                       </AlertDialogAction>
                                     </AlertDialogFooter>
                                   </AlertDialogContent>
                                 </AlertDialog>
                               </Tooltip>
 
-                              {/* Opção para Excluir Usuário */}
-                              <AlertDialog>
-                                <AlertDialogTrigger asChild>
-                                  <DropdownMenuItem 
-                                    onSelect={(e) => e.preventDefault()} 
-                                    disabled={user.role === 'admin'}
-                                    className={user.role === 'admin' ? "text-muted-foreground cursor-not-allowed" : ""}
-                                  >
-                                    <Trash className="mr-2 h-4 w-4" />
-                                    Excluir
-                                  </DropdownMenuItem>
-                                </AlertDialogTrigger>
-                                <AlertDialogContent>
-                                  <AlertDialogHeader>
-                                    <AlertDialogTitle>Excluir Usuário Permanentemente</AlertDialogTitle>
-                                    <AlertDialogDescription>
-                                      Tem certeza que deseja excluir o usuário "{user.name}" permanentemente? Esta ação não pode ser desfeita e o usuário será removido do sistema.
-                                    </AlertDialogDescription>
-                                  </AlertDialogHeader>
-                                  <AlertDialogFooter>
-                                    <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                                    <AlertDialogAction
-                                      className="bg-red-600 hover:bg-red-700"
-                                      onClick={() => handleDeleteUser(user.id)}
+                              {/* Opção para Excluir Usuário (apenas se não for admin) */}
+                              {user.perfil !== 'admin' && (
+                                <AlertDialog>
+                                  <AlertDialogTrigger asChild>
+                                    <DropdownMenuItem 
+                                      onSelect={(e) => e.preventDefault()} 
+                                      className="text-red-600 hover:!text-red-700"
                                     >
-                                      Excluir Permanentemente
-                                    </AlertDialogAction>
-                                  </AlertDialogFooter>
-                                </AlertDialogContent>
-                              </AlertDialog>
+                                      <Trash className="mr-2 h-4 w-4" />
+                                      Excluir
+                                    </DropdownMenuItem>
+                                  </AlertDialogTrigger>
+                                  <AlertDialogContent>
+                                    <AlertDialogHeader>
+                                      <AlertDialogTitle>Confirmar exclusão</AlertDialogTitle>
+                                      <AlertDialogDescription>
+                                        Você tem certeza que deseja excluir o usuário {user.nome}? Esta ação não pode ser desfeita.
+                                      </AlertDialogDescription>
+                                    </AlertDialogHeader>
+                                    <AlertDialogFooter>
+                                      <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                                      <AlertDialogAction 
+                                        onClick={() => handleDeleteUser(user.id)}
+                                        className="bg-red-600 hover:bg-red-700"
+                                      >
+                                        Excluir
+                                      </AlertDialogAction>
+                                    </AlertDialogFooter>
+                                  </AlertDialogContent>
+                                </AlertDialog>
+                              )}
                             </DropdownMenuContent>
                           </DropdownMenu>
                         </TableCell>

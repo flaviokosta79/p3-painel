@@ -54,34 +54,53 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   
   const login = async (email: string, password: string): Promise<boolean> => {
     try {
+      console.log('[Auth] Tentativa de login com email:', email); // Log
       // Em um cenário real, esta solicitação seria feita a uma API
       // Agora vamos verificar no localStorage (pmerj_users) se existe um usuário com esse email
       const storedUsers = localStorage.getItem('pmerj_users');
-      if (!storedUsers) return false;
+      if (!storedUsers) {
+        console.log('[Auth] Nenhum usuário encontrado em pmerj_users.'); // Log
+        return false;
+      }
       
       const users = JSON.parse(storedUsers);
+      console.log('[Auth] Usuários de pmerj_users:', users); // Log
       
       // Obter as senhas armazenadas
       const userPasswords = JSON.parse(localStorage.getItem('pmerj_user_passwords') || '{}');
+      console.log('[Auth] Senhas de pmerj_user_passwords:', userPasswords); // Log
       
       // Verificar credenciais
-      const foundUser = users.find((u: any) => u.email === email && u.active !== false);
+      // Ajuste para usar 'nome' e 'perfil' como em UserData, e verificar se está ativo
+      const foundUser = users.find((u: any) => u.email === email && u.ativo !== false); 
       
+      console.log('[Auth] Usuário encontrado (foundUser):', foundUser); // Log
+
       if (foundUser) {
         // Verificar a senha do usuário
         const userPassword = userPasswords[foundUser.id];
+        console.log('[Auth] Senha do usuário (userPassword):', userPassword); // Log
+        console.log('[Auth] Senha fornecida:', password); // Log
         
         // Se a senha armazenada corresponder à senha fornecida ou se for uma das senhas padrão para desenvolvimento
         if (userPassword === password || password === 'admin123' || password === 'user123') {
+          console.log('[Auth] Senha compatível.'); // Log
           // Cria o objeto de usuário autenticado
+          // ATENÇÃO AQUI: Mapear corretamente de UserData (foundUser) para User (userObj)
           const userObj: User = {
             id: foundUser.id,
-            name: foundUser.name,
+            name: foundUser.nome, // Correto: de UserData.nome
             email: foundUser.email,
-            role: foundUser.role,
-            unit: foundUser.unit,
-            isAdmin: foundUser.role === 'admin' // Adiciona a nova propriedade
+            role: foundUser.perfil, // Correto: de UserData.perfil
+            // Para 'unit', precisamos buscar o objeto Unit com base em foundUser.unidadeId
+            // Esta lógica pode precisar ser mais robusta ou buscar de useUsers se disponível aqui
+            // Por simplicidade, vamos assumir que defaultUnits de useUsers é acessível ou que pmerj_users já tem o objeto unit
+            // Se pmerj_users armazena apenas unidadeId, isso precisa de ajuste.
+            // Por ora, vamos ver o que foundUser.unit contém (provavelmente undefined se pmerj_users só tem unidadeId)
+            unit: foundUser.unidadeId ? { id: foundUser.unidadeId, name: localStorage.getItem(`unit_name_${foundUser.unidadeId}`) || 'Unidade Desconhecida' } : { id: 'unknown', name: 'Unidade Desconhecida' }, // Tentativa de reconstruir, idealmente viria de useUsers ou um DB de unidades
+            isAdmin: foundUser.perfil === 'admin' 
           };
+          console.log('[Auth] Objeto de usuário para autenticação (userObj):', userObj); // Log
           
           // Armazena no estado e localStorage
           setUser(userObj);

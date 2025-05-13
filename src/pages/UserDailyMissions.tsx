@@ -1,10 +1,11 @@
 import { MainLayout } from "@/components/layout/MainLayout";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useAuth } from "@/hooks/useAuth";
-import { useMissions } from "@/hooks/useMissions";
+import { useMissions, type UnitMissionProgress } from "@/hooks/useMissions"; 
 import { Mission } from "@/db/MissionStorage";
 import { useEffect, useState } from "react";
 import { UserMissionCard } from "@/components/UserMissionCard";
+import { useToast } from "@/components/ui/use-toast"; 
 
 // Helper para obter o dia da semana em português para o valor da aba
 const getDayValue = (dayIndex: number): Mission['dayOfWeek'] => {
@@ -17,9 +18,12 @@ const getDayValue = (dayIndex: number): Mission['dayOfWeek'] => {
 
 export function UserDailyMissions() {
   const { user } = useAuth();
-  const { missions, updateMissionStatus, loading: missionsLoading, setMissionFile, clearMissionFile } = useMissions();
+  const { missions, loading: missionsLoading, updateUnitMissionStatus, setUnitMissionFile, clearUnitMissionFile } = useMissions(); 
   const [userMissions, setUserMissions] = useState<Mission[]>([]);
+  // const [userUnitProgressMap, setUserUnitProgressMap] = useState<Record<string, UnitMissionProgress | undefined>>({}); // Não é mais necessário
+
   const [selectedDay, setSelectedDay] = useState<Mission['dayOfWeek']>(getDayValue(new Date().getDay()));
+  const { toast } = useToast(); 
 
   const today = new Date();
   const currentDayValue = getDayValue(today.getDay());
@@ -27,57 +31,69 @@ export function UserDailyMissions() {
   const daysOfWeekForTabs: Mission['dayOfWeek'][] = ["Segunda-feira", "Terça-feira", "Quarta-feira", "Quinta-feira", "Sexta-feira"];
 
   useEffect(() => {
-    if (user && missions) {
-      const dayString = selectedDay; // selectedDay já é do tipo DayOfWeek
-      const isAdmin = user.isAdmin;
+    if (user && user.unit && missions) {
+      const dayString = selectedDay;
+      const isUserAdmin = user.isAdmin; // Correção: usar user.isAdmin
 
-      const filtered = missions.filter((mission) => {
-        let isTargetUser = !isAdmin ? (mission.targetUnitIds.includes(user.unit.id as string) || mission.targetUnitIds.includes('ALL')) : true;
-        
-        const isPending = mission.status === 'Pendente';
-        // Para admin: mostra se pendente OU se tem arquivo (de qualquer usuário)
-        // Para usuário: mostra se pendente OU se CUMPRIDA e o arquivo foi enviado POR ELE
-        const shouldShowForAdmin = isAdmin && (isPending || !!mission.submittedFile);
-        const shouldShowForUser = !isAdmin && (isPending || (mission.status === 'Cumprida' && mission.submittedFile && mission.submittedFile.uploadedById === user.id));
+      const filteredMissions: Mission[] = [];
+      // const progressMap: Record<string, UnitMissionProgress | undefined> = {}; // Não é mais necessário aqui, o card vai lidar com isso
 
-        return (
-          mission.dayOfWeek === dayString &&
-          isTargetUser &&
-          (isAdmin ? shouldShowForAdmin : shouldShowForUser)
-        );
+      missions.forEach((mission) => {
+        if (mission.dayOfWeek !== dayString) return; 
+
+        if (isUserAdmin) {
+          filteredMissions.push(mission);
+        } else {
+          const targetUnit = mission.targetUnitIds.includes(user.unit.id as string);
+          if (targetUnit) {
+            const unitProgressForUser = mission.unitProgress.find(up => up.unitId === user.unit.id);
+            
+            if (unitProgressForUser) {
+              const isPending = unitProgressForUser.status === 'Pendente';
+              // Usuário vê a missão se estiver pendente para sua unidade, OU se ele mesmo a cumpriu
+              const isCumpridaByUser = unitProgressForUser.status === 'Cumprida' && unitProgressForUser.submittedFile && unitProgressForUser.submittedFile.uploadedById === user.id;
+              // Ou se estiver atrasada ou não cumprida, para que ele possa agir
+              const isAtrasada = unitProgressForUser.status === 'Atrasada';
+              const isNaoCumprida = unitProgressForUser.status === 'Não Cumprida';
+
+              if (isPending || isCumpridaByUser || isAtrasada || isNaoCumprida) {
+                filteredMissions.push(mission);
+                // progressMap[mission.id] = unitProgressForUser; // Não é mais necessário aqui
+              }
+            } else {
+              // Se não há unitProgress para esta unidade, e ela é alvo, o usuário deveria vê-la como 'Pendente'.
+              // Isso implica que ao criar a missão, unitProgress deve ser inicializado para todas as targetUnitIds.
+              // Por agora, se não houver, vamos assumir que ele não deve interagir ainda ou há um problema de dados.
+              console.warn(`Missão ${mission.id} não tem unitProgress para a unidade do usuário ${user.unit.id}. Não será exibida.`);
+            }
+          }
+        }
       });
-      setUserMissions(filtered);
+      setUserMissions(filteredMissions);
+      // setUserUnitProgressMap(progressMap); // Não é mais necessário aqui
     }
   }, [missions, user, selectedDay]);
 
-  // Modificada para lidar com upload de arquivo
-  const handleFileUpload = async (missionId: string, file: File) => {
-    if (user) {
-      console.log(`Arquivo para missão ${missionId}:`, file.name, file.type, file.size);
+  const handleFileUpload = async (missionId: string, file: File) => { // unitId removido dos params, será pego de user.unit.id
+    if (user && user.unit) { 
       try {
-        // A lógica de como 'submittedFile' é definido será movida para useMissions
-        await setMissionFile(missionId, file, user); // Função hipotética em useMissions
-        // O status pode ou não mudar aqui, dependendo da regra de negócio.
-        // Por exemplo, pode ir para 'Em Análise' ou diretamente 'Cumprida'.
-        // Se o envio do arquivo significa que a missão está cumprida:
-        // await updateMissionStatus(missionId, "Cumprida", user.id);
-        console.log(`Arquivo enviado para missão ${missionId}.`);
+        await setUnitMissionFile(missionId, user.unit.id, file, user);
+        toast({ title: "Sucesso", description: "Arquivo enviado e status atualizado para Cumprida." });
       } catch (error) {
         console.error("Erro ao enviar arquivo para missão:", error);
+        toast({ title: "Erro", description: "Não foi possível enviar o arquivo.", variant: "destructive" });
       }
     }
   };
 
-  const handleRemoveFile = async (missionId: string) => {
-    if (user) {
+  const handleRemoveFile = async (missionId: string) => { // unitId removido dos params, será pego de user.unit.id
+    if (user && user.unit) { 
       try {
-        // A lógica de como 'submittedFile' é removido será movida para useMissions
-        await clearMissionFile(missionId, user); // Função hipotética em useMissions
-        // O status provavelmente voltará para 'Pendente'
-        // await updateMissionStatus(missionId, "Pendente", user.id);
-        console.log(`Arquivo removido da missão ${missionId}.`);
+        await clearUnitMissionFile(missionId, user.unit.id, user);
+        toast({ title: "Sucesso", description: "Arquivo removido e status atualizado para Pendente." });
       } catch (error) {
         console.error("Erro ao remover arquivo da missão:", error);
+        toast({ title: "Erro", description: "Não foi possível remover o arquivo.", variant: "destructive" });
       }
     }
   };
@@ -107,7 +123,7 @@ export function UserDailyMissions() {
                 {missionsLoading && <p>Carregando missões...</p>}
                 {!missionsLoading && userMissions.filter(m => m.dayOfWeek === day).length === 0 && (
                   <p className="col-span-full text-muted-foreground">
-                    Nenhuma missão pendente para {day.toLowerCase().replace('-feira', '')}.
+                    Nenhuma missão para {day.toLowerCase().replace('-feira', '')} direcionada à sua unidade ou já cumprida e não enviada por você.
                   </p>
                 )}
                 {userMissions
@@ -116,9 +132,12 @@ export function UserDailyMissions() {
                     <UserMissionCard 
                       key={mission.id} 
                       mission={mission} 
-                      onFileUpload={handleFileUpload} 
-                      onRemoveFile={handleRemoveFile} 
-                      isAdminView={user?.isAdmin || false} // Nova prop
+                      // unitId={user?.unit?.id || ''} // Removido
+                      // unitProgress={userUnitProgressMap[mission.id]} // Removido
+                      onFileUpload={handleFileUpload} // Simplificado, unitId será pego de user.unit.id dentro da função
+                      onRemoveFile={handleRemoveFile} // Simplificado
+                      isAdminView={user?.isAdmin || false} // Correção: usar user.isAdmin
+                      currentUser={user} 
                     />
                   ))}
               </div>
