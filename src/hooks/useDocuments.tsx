@@ -1,6 +1,8 @@
+
 import { createContext, useContext, useState, type ReactNode, useEffect } from 'react';
 import { useAuth, type User } from './useAuth';
 import { toast } from '@/hooks/use-toast';
+import { DocumentStorage } from '@/db';
 
 // Tipos
 export type DocumentStatus = 'pending' | 'approved' | 'revision' | 'completed';
@@ -43,12 +45,10 @@ interface DocumentsContextType {
   getUserDocuments: (userId: string) => Document[];
   getUnitDocuments: (unitId: string) => Document[];
   getAllDocuments: () => Document[];
-  deleteDocument: (id: string) => Promise<boolean>; // Added
-  updateDocument: (id: string, updatedDoc: Partial<Omit<Document, 'id' | 'submissionDate' | 'submittedBy' | 'status'>>) => Promise<boolean>; // Added
+  deleteDocument: (id: string) => Promise<boolean>;
+  updateDocument: (id: string, updatedDoc: Partial<Omit<Document, 'id' | 'submissionDate' | 'submittedBy' | 'status'>>) => Promise<boolean>;
+  exportDocumentAsJSON: (id: string) => string | null;
 }
-
-// Lista vazia para armazenar documentos
-// Não usamos mais dados mockados
 
 const DocumentsContext = createContext<DocumentsContextType | undefined>(undefined);
 
@@ -96,6 +96,9 @@ export function DocumentsProvider({ children }: { children: ReactNode }) {
       setDocuments(updatedDocuments);
       localStorage.setItem('pmerj_documents', JSON.stringify(updatedDocuments));
       
+      // Salva documento como JSON na "pasta" db
+      await DocumentStorage.saveDocument(document);
+      
       toast({
         title: "Documento enviado",
         description: "Seu documento foi enviado com sucesso e está aguardando análise.",
@@ -136,11 +139,16 @@ export function DocumentsProvider({ children }: { children: ReactNode }) {
             });
           }
           
-          return {
+          const updatedDoc = {
             ...doc,
             status,
             comments: updatedComments,
           };
+          
+          // Atualiza o arquivo JSON
+          DocumentStorage.saveDocument(updatedDoc);
+          
+          return updatedDoc;
         }
         return doc;
       });
@@ -179,6 +187,10 @@ export function DocumentsProvider({ children }: { children: ReactNode }) {
       const updatedDocuments = documents.filter(doc => doc.id !== id);
       setDocuments(updatedDocuments);
       localStorage.setItem('pmerj_documents', JSON.stringify(updatedDocuments));
+      
+      // Remove o arquivo JSON
+      await DocumentStorage.deleteDocument(id);
+      
       toast({
         title: "Documento excluído",
         description: "O documento foi excluído com sucesso.",
@@ -200,11 +212,15 @@ export function DocumentsProvider({ children }: { children: ReactNode }) {
     try {
       const updatedDocuments = documents.map((doc) => {
         if (doc.id === id) {
-          return {
+          const updatedDoc = {
             ...doc,
             ...updatedDocData,
-            // Mantém o status e informações de envio originais, a menos que explicitamente alterados em outra função
           };
+          
+          // Atualiza o arquivo JSON
+          DocumentStorage.saveDocument(updatedDoc);
+          
+          return updatedDoc;
         }
         return doc;
       });
@@ -245,10 +261,15 @@ export function DocumentsProvider({ children }: { children: ReactNode }) {
             },
           ];
           
-          return {
+          const updatedDoc = {
             ...doc,
             comments: updatedComments,
           };
+          
+          // Atualiza o arquivo JSON
+          DocumentStorage.saveDocument(updatedDoc);
+          
+          return updatedDoc;
         }
         return doc;
       });
@@ -287,6 +308,10 @@ export function DocumentsProvider({ children }: { children: ReactNode }) {
     return documents;
   };
   
+  const exportDocumentAsJSON = (id: string) => {
+    return DocumentStorage.exportDocumentAsJSON(id);
+  };
+  
   const value = {
     documents,
     loading,
@@ -296,25 +321,13 @@ export function DocumentsProvider({ children }: { children: ReactNode }) {
     getUserDocuments,
     getUnitDocuments,
     getAllDocuments,
-    deleteDocument, // Added
-    updateDocument  // Added
+    deleteDocument,
+    updateDocument,
+    exportDocumentAsJSON
   };
   
   return (
-    <DocumentsContext.Provider 
-      value={{ 
-        documents, 
-        loading, 
-        addDocument, 
-        updateDocumentStatus, 
-        addComment, 
-        getUserDocuments, 
-        getUnitDocuments, 
-        getAllDocuments,
-        deleteDocument, // Added
-        updateDocument  // Added
-      }}
-    >
+    <DocumentsContext.Provider value={value}>
       {children}
     </DocumentsContext.Provider>
   );
