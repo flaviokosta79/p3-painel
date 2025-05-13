@@ -2,7 +2,6 @@ import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { MainLayout } from "@/components/layout/MainLayout";
 import { Card, CardContent } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
 import { useDocuments } from "@/hooks/useDocuments";
 import { DocumentFormFields } from "@/components/documents/upload/DocumentFormFields";
 import { FormActions } from "@/components/documents/upload/FormActions";
@@ -17,7 +16,7 @@ const DocumentEdit = () => {
   
   const {
     control,
-    handleSubmit: submitForm,
+    handleSubmit,
     formState: { errors, isSubmitting },
     setValue,
     watch,
@@ -109,10 +108,7 @@ const DocumentEdit = () => {
         
         <Card className="border rounded-md">
           <CardContent className="p-6">
-            <form onSubmit={e => {
-              e.preventDefault();
-              submitForm(onSubmit)();
-            }}>
+            <form onSubmit={handleSubmit(onSubmit)}>
               <div className="space-y-6">
                 <DocumentFormFields
                   control={control}
