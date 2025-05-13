@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { SidebarTrigger } from "@/components/ui/sidebar";
@@ -31,6 +30,18 @@ export function Header() {
           className="mr-2 md:hidden" 
           aria-label="Toggle Menu"
         />
+        
+        {/* Adicionar saudação e mensagem de boas-vindas */}
+        <div className="flex-grow flex flex-col items-start justify-center ml-2 md:ml-4">
+          {user && (
+            <span className="text-sm font-medium text-gray-700">
+              Olá, {user.name || 'Usuário'}
+            </span>
+          )}
+          <span className="text-xs text-gray-500 hidden md:block">
+            Bem-vindo ao Sistema de Gestão Documental do 5º CPA
+          </span>
+        </div>
         
         <div className="flex items-center ml-auto">
           <div className="relative">

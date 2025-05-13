@@ -1,4 +1,3 @@
-
 import { useAuth } from "@/hooks/useAuth";
 import { useDocuments } from "@/hooks/useDocuments";
 import { MainLayout } from "@/components/layout/MainLayout";
@@ -60,151 +59,118 @@ const Index = () => {
   return (
     <MainLayout>
       <div className="space-y-6">
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight">Olá, {user?.name}</h1>
-          <p className="text-muted-foreground">
-            Bem-vindo ao Sistema de Gestão Documental do 5º CPA
-          </p>
-        </div>
-          <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-3 gap-4">
           <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">
+            <CardHeader className="flex flex-row items-center justify-between space-y-0">
+              <CardTitle className="text-xs font-medium">
                 Total de Documentos
               </CardTitle>
               <File className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
-            <CardContent>
+            <CardContent className="py-1">
               <div className="text-2xl font-bold">{stats.total}</div>
-              <p className="text-xs text-muted-foreground">
-                Documentos registrados no sistema
-              </p>
             </CardContent>
           </Card>
           
           <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Pendentes</CardTitle>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0">
+              <CardTitle className="text-xs font-medium">Pendentes</CardTitle>
               <FileClock className="h-4 w-4 text-yellow-500" />
             </CardHeader>
-            <CardContent>
+            <CardContent className="py-1">
               <div className="text-2xl font-bold">{stats.pending}</div>
-              <p className="text-xs text-muted-foreground">
-                Aguardando análise
-              </p>
             </CardContent>
           </Card>
           
           <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Concluídos</CardTitle>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0">
+              <CardTitle className="text-xs font-medium">Concluídos</CardTitle>
               <FileCheck className="h-4 w-4 text-green-500" />
             </CardHeader>
-            <CardContent>
+            <CardContent className="py-1">
               <div className="text-2xl font-bold">
                 {stats.approved + stats.completed}
               </div>
-              <p className="text-xs text-muted-foreground">
-                Aprovados ou concluídos
-              </p>
             </CardContent>
           </Card>
         </div>
         
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          <div className="lg:col-span-2 grid grid-cols-1 lg:grid-cols-2 gap-6">
-            {/* Coluna de Documentos Pendentes */}
-            <div className="space-y-4">
-              <div className="flex justify-between items-center">
-                <h2 className="text-xl font-semibold">Documentos Pendentes</h2>
-                <Button 
-                  variant="outline" 
-                  onClick={() => isAdmin ? navigate("/admin/documents") : navigate("/documents")}
-                >
-                  Ver todos
-                </Button>
+          <div className="space-y-4">
+            <h2 className="text-xl font-semibold">Documentos Pendentes</h2>
+            {pendingDocuments.length > 0 ? (
+              <div className="space-y-4 max-h-[600px] overflow-y-auto pr-2">
+                {pendingDocuments.map((doc) => (
+                  <DocumentCard key={doc.id} document={doc} />
+                ))}
               </div>
-              
-              {loading ? (
-                <div className="py-8 text-center">Carregando documentos...</div>
-              ) : pendingDocuments.length > 0 ? (
-                <div className="grid grid-cols-1 gap-4">
-                  {pendingDocuments.map((doc) => (
-                    <DocumentCard key={doc.id} document={doc} />
-                  ))}
-                </div>
-              ) : (
-                <Card className="p-6 text-center">
-                  <p className="text-muted-foreground mb-4">
-                    Nenhum documento pendente
-                  </p>
-                </Card>
-              )}
-            </div>
-            
-            {/* Coluna de Documentos em Revisão */}
-            <div className="space-y-4">
-              <div className="flex justify-between items-center">
-                <h2 className="text-xl font-semibold">Documentos em Revisão</h2>
-                <Button 
-                  variant="outline" 
-                  onClick={() => isAdmin ? navigate("/admin/documents") : navigate("/documents")}
-                >
-                  Ver todos
-                </Button>
-              </div>
-              
-              {loading ? (
-                <div className="py-8 text-center">Carregando documentos...</div>
-              ) : revisionDocuments.length > 0 ? (
-                <div className="grid grid-cols-1 gap-4">
-                  {revisionDocuments.map((doc) => (
-                    <DocumentCard key={doc.id} document={doc} />
-                  ))}
-                </div>
-              ) : (
-                <Card className="p-6 text-center">
-                  <p className="text-muted-foreground mb-4">
-                    Nenhum documento em revisão
-                  </p>
-                </Card>
-              )}
-            </div>
+            ) : (
+              <Card className="p-2 text-center">
+                <p className="text-muted-foreground mb-2">
+                  Nenhum documento pendente
+                </p>
+              </Card>
+            )}
           </div>
           
+          <div className="space-y-4">
+            <h2 className="text-xl font-semibold">Documentos Pendentes</h2>
+            {pendingDocuments.length > 0 ? (
+              <div className="space-y-4 max-h-[600px] overflow-y-auto pr-2">
+                {pendingDocuments.map((doc) => (
+                  <DocumentCard key={`${doc.id}-clone`} document={doc} />
+                ))}
+              </div>
+            ) : (
+              <Card className="p-2 text-center">
+                <p className="text-muted-foreground mb-2">
+                  Nenhum documento pendente
+                </p>
+              </Card>
+            )}
+          </div>
+
           <div className="space-y-4">
             <h2 className="text-xl font-semibold">Ações Rápidas</h2>
             <div className="grid grid-cols-1 gap-4">
               <Card className="transition-colors hover:bg-muted/50">
-                <Link to="/documents/new" className="block p-6">
+                <Link to="/documents/new" className="block p-3">
                   <div className="flex items-center space-x-4">
                     <div className="bg-primary/10 p-2 rounded-full">
                       <Upload className="h-6 w-6 text-primary" />
                     </div>
                     <div>
-                      <CardTitle className="text-base">Enviar Documento</CardTitle>
-                      <CardDescription>
-                        Faça upload de novos documentos
-                      </CardDescription>
+                      <CardTitle className="text-sm">Enviar Documento</CardTitle>
                     </div>
                   </div>
                 </Link>
               </Card>
-                <Card className="transition-colors hover:bg-muted/50">
-                <Link to="/documents" className="block p-6">
+              <Card className="transition-colors hover:bg-muted/50">
+                <Link to="/documents" className="block p-3">
                   <div className="flex items-center space-x-4">
                     <div className="bg-primary/10 p-2 rounded-full">
                       <File className="h-6 w-6 text-primary" />
                     </div>
                     <div>
-                      <CardTitle className="text-base">Meus Documentos</CardTitle>
-                      <CardDescription>
-                        Visualize seus documentos enviados
-                      </CardDescription>
+                      <CardTitle className="text-sm">Meus Documentos</CardTitle>
                     </div>
                   </div>
                 </Link>
               </Card>
+              {isAdmin && (
+                <Card className="transition-colors hover:bg-muted/50">
+                  <Link to="/admin/users" className="block p-3">
+                    <div className="flex items-center space-x-4">
+                      <div className="bg-primary/10 p-2 rounded-full">
+                        <Users className="h-6 w-6 text-primary" />
+                      </div>
+                      <div>
+                        <CardTitle className="text-sm">Usuários</CardTitle>
+                      </div>
+                    </div>
+                  </Link>
+                </Card>
+              )}
             </div>
           </div>
         </div>

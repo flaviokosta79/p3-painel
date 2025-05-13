@@ -90,15 +90,18 @@ export function DocumentCard({ document }: DocumentCardProps) {
     <>
       <Card className="card-hover overflow-hidden">
         <div className={`h-2 ${getStatusColor(document.status)}`} />
-        <CardHeader className="pb-2">
+        {/* Reduzir padding vertical para py-1, space-x para space-x-1 e tamanho do ícone */}
+        <CardHeader className="py-1">
           <div className="flex items-start justify-between">
-            <div className="flex items-center space-x-3">
-              <div className="flex items-center justify-center h-10 w-10 rounded-md bg-primary text-primary-foreground font-bold">
+            <div className="flex items-center space-x-1">
+              {/* Reduzir h-10 w-10 para h-8 w-8 */}
+              <div className="flex items-center justify-center h-8 w-8 rounded-md bg-primary text-primary-foreground font-bold text-xs">
                 {titleInitials}
               </div>
               <div>
-                <CardTitle className="text-lg truncate">{document.title}</CardTitle>
-                <CardDescription className="flex items-center space-x-1 text-sm">
+                {/* Reduzir text-base para text-sm */}
+                <CardTitle className="text-sm truncate">{document.title}</CardTitle>
+                <CardDescription className="flex items-center space-x-1 text-xs">
                   <FileText className="h-3 w-3" />
                   <span className="capitalize">{fileIcon(document.fileType)}</span>
                   <span>•</span>
@@ -106,7 +109,7 @@ export function DocumentCard({ document }: DocumentCardProps) {
                 </CardDescription>
               </div>
             </div>
-            <div className="flex items-center space-x-2">
+            <div className="flex items-center space-x-1">
               <Badge className={getStatusColor(document.status)}>
                 {getStatusText(document.status)}
               </Badge>
@@ -131,12 +134,13 @@ export function DocumentCard({ document }: DocumentCardProps) {
           </div>
         </CardHeader>
         
-        <CardContent className="pb-2 space-y-4">
+        {/* Reduzir py-2 space-y-2 para py-1 space-y-1, text-sm para text-xs na descrição, gap-x-3 para gap-x-2 */}
+        <CardContent className="py-1 space-y-1">
           {document.description && (
-            <p className="text-sm line-clamp-2">{document.description}</p>
+            <p className="text-xs line-clamp-2 text-muted-foreground">{document.description}</p>
           )}
           
-          <div className="flex flex-wrap gap-y-1 gap-x-4 text-sm text-gray-500">
+          <div className="flex flex-wrap gap-y-1 gap-x-2 text-xs text-gray-500">
             <div className="flex items-center space-x-1">
               <User className="h-3 w-3" />
               <span>{document.submittedBy.name}</span>
@@ -151,7 +155,8 @@ export function DocumentCard({ document }: DocumentCardProps) {
           </div>
         </CardContent>
         
-        <CardFooter className="pt-2 pb-4">
+        {/* Reduzir py-2 para py-1 */}
+        <CardFooter className="py-1">
           <Button 
             variant="outline" 
             size="sm" 
