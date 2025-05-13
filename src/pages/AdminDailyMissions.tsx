@@ -192,6 +192,9 @@ const AdminDailyMissions = () => {
 
   const ADMIN_UNIT_ID = 'cpa5'; // ID da unidade a ser excluída da exibição de progresso
 
+  // Filtra as unidades para exibição nos formulários, excluindo a unidade admin
+  const unitsForForms = allUnitsFromHook.filter(unit => unit.id !== ADMIN_UNIT_ID);
+
   // Função para renderizar o progresso das unidades com popover
   const renderUnitProgress = (mission: Mission, currentStatusFilter: MissionStatus | "all") => {
     if (!mission.unitProgress || mission.unitProgress.length === 0) {
@@ -510,12 +513,12 @@ const AdminDailyMissions = () => {
             </div>
 
             <div className="grid grid-cols-4 items-start gap-4"> 
-              <Label htmlFor="missionTargetUnitIdsGroup" className="text-right pt-2"> 
+              <Label htmlFor="missionTargetUnitIdsGroup" className="text-right pt-1"> 
                 Unidade(s) Alvo*
               </Label>
               <div className="col-span-3">
                 <div className="flex flex-col space-y-2" id="missionTargetUnitIdsGroup">
-                  {allUnitsFromHook.map((unit) => (
+                  {unitsForForms.map((unit) => (
                     <div key={unit.id} className="flex items-center space-x-2">
                       <Checkbox
                         id={`unit-${unit.id}`}
@@ -525,28 +528,32 @@ const AdminDailyMissions = () => {
                             checked ? [...prev, unit.id] : prev.filter(id => id !== unit.id)
                           );
                         }}
-                        disabled={!!editingMission} 
                       />
-                      <Label htmlFor={`unit-${unit.id}`} className="font-normal">{unit.name}</Label>
+                      <label htmlFor={`unit-${unit.id}`} className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
+                        {unit.name}
+                      </label>
                     </div>
                   ))}
+                  {unitsForForms.length === 0 && <p className="text-xs text-muted-foreground">Nenhuma unidade operacional disponível para seleção.</p>}
                 </div>
-                {!editingMission && (
-                    <div className="flex items-center space-x-2 mt-3 pt-2 border-t border-border">
-                      <Checkbox
-                        id="select-all-units"
-                        checked={allUnitsFromHook.length > 0 && targetUnitIds.length === allUnitsFromHook.length}
-                        onCheckedChange={(checked) => {
-                          if (checked) {
-                            setTargetUnitIds(allUnitsFromHook.map(u => u.id));
-                          } else {
-                            setTargetUnitIds([]);
-                          }
-                        }}
-                      />
-                      <Label htmlFor="select-all-units" className="font-normal">Selecionar Todas as Unidades</Label>
-                    </div>
-                  )}
+                {unitsForForms.length > 0 && (
+                  <div className="flex items-center space-x-2 mt-3 pt-2 border-t border-border">
+                    <Checkbox
+                      id="select-all-units"
+                      checked={unitsForForms.length > 0 && targetUnitIds.length === unitsForForms.length && unitsForForms.every(u => targetUnitIds.includes(u.id))}
+                      onCheckedChange={(checked) => {
+                        if (checked) {
+                          setTargetUnitIds(unitsForForms.map(u => u.id));
+                        } else {
+                          setTargetUnitIds([]);
+                        }
+                      }}
+                    />
+                    <label htmlFor="select-all-units" className="text-sm font-medium leading-none">
+                      Selecionar Todas as Unidades Visíveis
+                    </label>
+                  </div>
+                )}
               </div>
             </div>
 
