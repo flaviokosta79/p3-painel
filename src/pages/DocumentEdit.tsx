@@ -11,7 +11,6 @@ import { useDocumentForm } from "@/components/documents/upload/useDocumentForm";
 import { toast } from "@/hooks/use-toast";
 import { ArrowLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Form } from "@/components/ui/form";
 
 const DocumentEdit = () => {
   const { id } = useParams<{ id: string }>();
@@ -23,7 +22,6 @@ const DocumentEdit = () => {
   const {
     control,
     handleSubmit,
-    reset,
     formState,
     setValue,
     watch,
@@ -115,7 +113,7 @@ const DocumentEdit = () => {
           </p>
         </div>
 
-        <Form onSubmit={handleSubmit}>
+        <form onSubmit={handleSubmit(onSubmit)}>
           <Card>
             <CardHeader>
               <CardTitle>Detalhes do Documento</CardTitle>
@@ -142,11 +140,11 @@ const DocumentEdit = () => {
           
           <FormActions 
             onCancel={() => navigate(`/documents/${document.id}`)} 
-            isSubmitting={formState.isSubmitting} 
-            submitText="Salvar Alterações"
             isLoading={isLoading}
+            isSubmitting={formState.isSubmitting}  
+            submitText="Salvar Alterações"
           />
-        </Form>
+        </form>
       </div>
     </MainLayout>
   );

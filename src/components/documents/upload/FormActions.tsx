@@ -4,11 +4,17 @@ import { useNavigate } from "react-router-dom";
 
 interface FormActionsProps {
   isLoading: boolean;
+  isSubmitting?: boolean; // Add this optional prop
   onCancel?: () => void;
   submitText?: string;
 }
 
-export function FormActions({ isLoading, onCancel, submitText = "Enviar" }: FormActionsProps) {
+export function FormActions({ 
+  isLoading, 
+  isSubmitting, 
+  onCancel, 
+  submitText = "Enviar" 
+}: FormActionsProps) {
   const navigate = useNavigate();
 
   const handleCancel = () => {
@@ -18,6 +24,9 @@ export function FormActions({ isLoading, onCancel, submitText = "Enviar" }: Form
       navigate(-1);
     }
   };
+
+  // Use either isSubmitting or isLoading for the disabled state
+  const isDisabled = isLoading || isSubmitting;
 
   return (
     <div className="flex justify-between pt-4 gap-2">
@@ -33,9 +42,9 @@ export function FormActions({ isLoading, onCancel, submitText = "Enviar" }: Form
         type="submit"
         className="bg-pmerj-blue text-white hover:bg-pmerj-blue/90"
         size="sm"
-        disabled={isLoading}
+        disabled={isDisabled}
       >
-        {isLoading ? "Enviando..." : submitText}
+        {isDisabled ? "Enviando..." : submitText}
       </Button>
     </div>
   );
