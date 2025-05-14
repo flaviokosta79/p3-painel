@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import { useUsers, UserData } from "@/hooks/useUsers";
 import { MainLayout } from "@/components/layout/MainLayout";
@@ -69,8 +70,8 @@ const AdminUsersList = () => {
     const unitName = getUnitNameById(user.unidadeId)?.toLowerCase() || "";
 
     return (
-      user.nome.toLowerCase().includes(term) ||
-      user.email.toLowerCase().includes(term) ||
+      user.nome?.toLowerCase().includes(term) ||
+      user.email?.toLowerCase().includes(term) ||
       unitName.includes(term)
     );
   });
@@ -81,8 +82,16 @@ const AdminUsersList = () => {
     if (a.ativo && !b.ativo) return -1;
     if (!a.ativo && b.ativo) return 1;
     
-    // Ordenar por nome
-    return a.nome.localeCompare(b.nome);
+    // Ordenar por nome - verificando se nome existe antes de usar localeCompare
+    if (a.nome && b.nome) {
+      return a.nome.localeCompare(b.nome);
+    } else if (a.nome) {
+      return -1; // a tem nome, b não tem
+    } else if (b.nome) {
+      return 1;  // b tem nome, a não tem
+    } else {
+      return 0;  // nenhum dos dois tem nome
+    }
   });
   
   const handleToggleUserStatus = async (userId: string, currentStatus: boolean) => { 

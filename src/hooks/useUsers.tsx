@@ -1,3 +1,4 @@
+
 import React, { createContext, useContext, useEffect, useState, ReactNode } from 'react';
 import { User as AuthUser, useAuth, UserRole } from './useAuth'; 
 import { usuários as defaultMockUsers, MockUserData } from '../db/mockData'; 
@@ -63,8 +64,28 @@ export const UsersProvider: React.FC<UsersProviderProps> = ({ children }) => {
     if (storedUsers) {
       try {
         const parsedUsers: UserData[] = JSON.parse(storedUsers);
-        setUsers(parsedUsers);
-        console.log('[useUsers] Usuários carregados do localStorage:', parsedUsers); // Log usuários do localStorage
+        
+        // Verificar se todos os usuários têm a propriedade nome
+        const validatedUsers = parsedUsers.map(user => {
+          // Se o usuário tem name, mas não tem nome (campos desalinhados)
+          if ((user as any).name && !user.nome) {
+            return {
+              ...user,
+              nome: (user as any).name
+            };
+          }
+          // Se não tem nome nem name, adicionar um nome padrão
+          if (!user.nome && !(user as any).name) {
+            return {
+              ...user,
+              nome: `Usuário ${user.id}`
+            };
+          }
+          return user;
+        });
+        
+        setUsers(validatedUsers);
+        console.log('[useUsers] Usuários carregados do localStorage:', validatedUsers); // Log usuários do localStorage
       } catch (e) {
         console.error("Erro ao parsear usuários do localStorage, usando mock data:", e);
         const mockUsersData: UserData[] = defaultMockUsers;
