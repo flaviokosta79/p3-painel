@@ -1,9 +1,9 @@
 import { useState, type FormEvent, useEffect } from "react";
 import { useDocuments, type DocumentStatus } from "@/hooks/useDocuments";
-import { useUsers } from "@/hooks/useUsers";
+import { useUsers, type Unit } from "@/hooks/useUsers";
 import { useAuth } from "@/hooks/useAuth"; 
 import { useDocumentRequirementsContext } from "@/hooks/DocumentRequirementsProvider";
-import type { NewDocumentRequirement } from "@/hooks/useDocumentRequirements";
+import type { NewDocumentRequirement, DocumentRequirement } from "@/hooks/useDocumentRequirements";
 import { MainLayout } from "@/components/layout/MainLayout";
 import { DocumentCard } from "@/components/documents/DocumentCard"; 
 import { DocumentActionsRow } from "@/components/documents/DocumentActionsRow"; 
@@ -100,7 +100,6 @@ const AdminDocumentsList = () => {
   const [isSubmitDocumentDialogOpen, setIsSubmitDocumentDialogOpen] = useState(false);
   const [selectedDocumentTypeId, setSelectedDocumentTypeId] = useState<string>("");
   const [docDate, setDocDate] = useState<Date | undefined>();
-  const [docDescription, setDocDescription] = useState<string>("");
   const [targetUnitId, setTargetUnitId] = useState<string>("");
   const [deadlineDate, setDeadlineDate] = useState<Date | undefined>();
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
@@ -304,7 +303,7 @@ const AdminDocumentsList = () => {
       if (allSuccess) {
         toast({
           title: "Documentos criados",
-          description: `Documentos criados com sucesso para todas as unidades.`
+          description: "Documentos criados com sucesso para todas as unidades."
         });
         resetForm();
         setIsSubmitDocumentDialogOpen(false);
@@ -334,31 +333,33 @@ const AdminDocumentsList = () => {
   };
   
   // Função auxiliar para criar um documento para uma unidade específica
-  const createDocumentForUnit = async (unit: any, requirement: any) => {
+  // Definindo um tipo para os dados do novo documento
+  interface NewDocumentData {
+    title: string;
+    unitId: string;
+    unitName: string;
+    documentDate: string;
+    deadline?: string;
+    fileName: string;
+    fileType: string;
+    fileSize: number;
+    fileUrl: string;
+  }
+
+  const createDocumentForUnit = async (unit: Unit, requirement: DocumentRequirement) => {
     try {
       // Dados básicos do documento
-      const newDocData: any = {
+      const newDocData: NewDocumentData = {
         title: requirement.name, 
-        description: docDescription.trim() || undefined,
         unitId: unit.id,
         unitName: unit.name,
-        documentDate: new Date().toISOString().split('T')[0], // Usamos a data atual como padrão
+        documentDate: new Date().toISOString().split('T')[0],
         deadline: deadlineDate ? format(deadlineDate, "yyyy-MM-dd") : undefined,
+        fileName: selectedFile ? selectedFile.name : "", 
+        fileType: selectedFile ? selectedFile.type : "", 
+        fileSize: selectedFile ? selectedFile.size : 0,   
+        fileUrl: selectedFile ? `/documents/admin_uploads/${selectedFile.name}` : "", 
       };
-      
-      // Adiciona informações do arquivo apenas se um arquivo foi selecionado
-      if (selectedFile) {
-        newDocData.fileName = selectedFile.name;
-        newDocData.fileType = selectedFile.type;
-        newDocData.fileSize = selectedFile.size;
-        newDocData.fileUrl = `/documents/admin_uploads/${selectedFile.name}`;
-      } else {
-        // Valores padrão para quando não há arquivo
-        newDocData.fileName = "";
-        newDocData.fileType = "";
-        newDocData.fileSize = 0;
-        newDocData.fileUrl = "";
-      }
       
       const success = await addDocument(newDocData);
       
@@ -368,14 +369,13 @@ const AdminDocumentsList = () => {
           description: `Documento "${newDocData.title}" criado para ${unit.name}.` 
         });
         return true;
-      } else {
-        toast({ 
-          title: "Erro", 
-          description: `Não foi possível criar o documento para ${unit.name}.`, 
-          variant: "destructive" 
-        });
-        return false;
       }
+      toast({ 
+        title: "Erro", 
+        description: `Não foi possível criar o documento para ${unit.name}.`, 
+        variant: "destructive" 
+      });
+      return false;
     } catch (error) {
       console.error("Erro ao criar documento:", error);
       toast({ 
@@ -391,7 +391,6 @@ const AdminDocumentsList = () => {
   const resetForm = () => {
     setSelectedDocumentTypeId("");
     setDocDate(undefined);
-    setDocDescription("");
     setTargetUnitId("");
     setDeadlineDate(undefined);
     setSelectedFile(null);
@@ -528,7 +527,9 @@ const AdminDocumentsList = () => {
                           <SelectValue placeholder="Selecione a unidade" />
                         </SelectTrigger>
                         <SelectContent>
-                          {units.map((unit) => (
+                          {units
+                            .filter(unit => unit.name !== "5º CPA")
+                            .map((unit) => (
                             <SelectItem key={unit.id} value={unit.id}>{unit.name}</SelectItem>
                           ))}
                         </SelectContent>
@@ -562,16 +563,6 @@ const AdminDocumentsList = () => {
                         />
                       </PopoverContent>
                     </Popover>
-                  </div>
-
-                  <div className="grid gap-2">
-                    <Label htmlFor="docDescription">Descrição (Opcional)</Label>
-                    <Textarea 
-                      id="docDescription" 
-                      value={docDescription} 
-                      onChange={(e) => setDocDescription(e.target.value)} 
-                      placeholder="Insira uma breve descrição do documento"
-                    />
                   </div>
 
                   <div className="grid gap-2">
