@@ -1,7 +1,7 @@
 
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import type { Document } from "@/hooks/useDocuments";
+import type { Document as DocumentType } from "@/hooks/useDocuments";
 import { useDocuments } from "@/hooks/useDocuments";
 import { Button } from "@/components/ui/button";
 import { Edit, Trash2, Eye, FileJson } from "lucide-react";
@@ -24,7 +24,7 @@ import {
 import { toast } from "@/hooks/use-toast";
 
 interface DocumentActionsProps {
-  document: Document;
+  document: DocumentType;
   isAdmin?: boolean;
   onActionComplete?: () => void;
 }
@@ -46,12 +46,12 @@ export function DocumentActionsRow({ document, isAdmin = false, onActionComplete
       // Criar um blob e fazer download
       const blob = new Blob([jsonData], { type: 'application/json' });
       const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
+      const a = window.document.createElement('a');
       a.href = url;
       a.download = `documento_${document.id}.json`;
-      document.body.appendChild(a);
+      window.document.body.appendChild(a);
       a.click();
-      document.body.removeChild(a);
+      window.document.body.removeChild(a);
       URL.revokeObjectURL(url);
       
       toast({
