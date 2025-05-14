@@ -121,6 +121,11 @@ export const UsersProvider: FC<UsersProviderProps> = ({ children }) => {
       const { data: authData, error: authError } = await supabase.auth.signUp({
         email: userData.email,
         password: userData.senha,
+        options: {
+          data: {
+            full_name: userData.nome, // Sincronizando o nome para user_metadata
+          }
+        }
       });
 
       if (authError || !authData || !authData.user) {
@@ -219,29 +224,93 @@ export const UsersProvider: FC<UsersProviderProps> = ({ children }) => {
 
   const updateUser = async (userId: string, userData: Partial<Omit<UserData, 'id' | 'ativo' | 'unidadeId' | 'senha'>> & { unidade?: Unit, senha?: string }): Promise<boolean> => {
     try {
-      setUsers(prevUsers => {
-        const updatedUsers = prevUsers.map(user => {
-          if (user.id === userId) {
-            const updatedUser = { ...user, ...userData };
-            if (userData.unidade) {
-              updatedUser.unidadeId = userData.unidade.id;
-            }
-            return updatedUser;
-          }
-          return user;
+      const dataToUpdate: {
+        nome?: string;
+        perfil?: UserRole;
+        unidade_id?: string;
+        // Adicione outros campos do perfil aqui se necessário, exceto email/senha por enquanto
+      } = {};
+
+      if (userData.nome !== undefined) {
+        dataToUpdate.nome = userData.nome;
+      }
+      if (userData.perfil !== undefined) {
+        dataToUpdate.perfil = userData.perfil;
+      }
+      if (userData.unidade?.id !== undefined) {
+        dataToUpdate.unidade_id = userData.unidade.id;
+      }
+
+      // Se não há nada para atualizar, retorne sucesso (ou trate como preferir)
+      if (Object.keys(dataToUpdate).length === 0) {
+        toast({
+          title: "Nenhuma Alteração",
+          description: "Nenhum dado foi modificado.",
         });
-        return updatedUsers;
-      });
+        return true;
+      }
+
+      const { error } = await supabase
+        .from('usuarios')
+        .update(dataToUpdate)
+        .eq('id', userId);
+
+      if (error) {
+        console.error("Erro ao atualizar usuário no Supabase:", error);
+        toast({
+          title: "Erro ao Atualizar Usuário",
+          description: error.message || "Não foi possível atualizar os dados do usuário.",
+          variant: "destructive",
+        });
+        return false;
+      }
+
+      // Se o nome foi atualizado, tentar sincronizar com user_metadata no Supabase Auth
+      // Isso atualizará o user_metadata do USUÁRIO LOGADO.
+      // Se um admin estiver editando outro usuário, isso não atualizará o user_metadata do usuário editado,
+      // apenas do admin logado (se o admin tiver um user_metadata.full_name).
+      // Para atualizar o user_metadata de outro usuário, seria necessário usar admin.updateUserById() (geralmente via Edge Function).
+      if (dataToUpdate.nome !== undefined) {
+        const { error: authUpdateError } = await supabase.auth.updateUser({
+          data: { full_name: dataToUpdate.nome }
+        });
+
+        if (authUpdateError) {
+          console.warn("Aviso ao sincronizar nome com Supabase Auth:", authUpdateError);
+          toast({
+            title: "Aviso de Sincronização (Auth)",
+            description: `Perfil atualizado, mas o nome no sistema de autenticação pode não ter sido sincronizado: ${authUpdateError.message}`,
+            variant: "default", // Não é um erro fatal para a operação principal
+          });
+          // Continuar mesmo se isso falhar, pois a tabela 'usuarios' foi atualizada.
+        }
+      }
+
+      // Atualizar estado local
+      setUsers(prevUsers =>
+        prevUsers.map(user =>
+          user.id === userId
+            ? {
+                ...user,
+                ...(dataToUpdate.nome !== undefined && { nome: dataToUpdate.nome }),
+                ...(dataToUpdate.perfil !== undefined && { perfil: dataToUpdate.perfil }),
+                ...(dataToUpdate.unidade_id !== undefined && { unidadeId: dataToUpdate.unidade_id }),
+              }
+            : user
+        )
+      );
+
       toast({
         title: "Usuário Atualizado",
         description: "Os dados do usuário foram atualizados com sucesso.",
       });
       return true;
+
     } catch (error) {
-      console.error("Erro ao atualizar usuário:", error);
+      console.error("Erro inesperado ao atualizar usuário:", error);
       toast({
-        title: "Erro ao atualizar usuário",
-        description: "Ocorreu um erro ao tentar atualizar os dados do usuário.",
+        title: "Erro Inesperado",
+        description: "Ocorreu um erro inesperado ao tentar atualizar o usuário.",
         variant: "destructive",
       });
       return false;

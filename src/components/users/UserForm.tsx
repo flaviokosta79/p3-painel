@@ -29,7 +29,7 @@ export function UserForm({ user, isEditing = false }: UserFormProps) {
   const [name, setName] = useState(user?.nome || "");
   const [email, setEmail] = useState(user?.email || "");
   const [password, setPassword] = useState("");
-  const [role, setRole] = useState<UserRole>(user?.perfil || "user");
+  const [role, setRole] = useState<UserRole>(user?.perfil || "usuario");
   const [unitId, setUnitId] = useState(user?.unidadeId || "");
   const [isLoading, setIsLoading] = useState(false);
   const [useGeneratedPassword, setUseGeneratedPassword] = useState(true);
@@ -202,7 +202,7 @@ export function UserForm({ user, isEditing = false }: UserFormProps) {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="admin">Administrador</SelectItem>
-                  <SelectItem value="user">Usuário</SelectItem>
+                  <SelectItem value="usuario">Usuário</SelectItem>
                 </SelectContent>
               </Select>
             </div>

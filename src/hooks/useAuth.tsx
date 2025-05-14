@@ -1,7 +1,7 @@
 import { createContext, useContext, useState, ReactNode, useEffect } from 'react';
 
 // Tipos
-export type UserRole = 'admin' | 'user';
+export type UserRole = 'admin' | 'usuario';
 
 export interface Unit {
   id: string;
