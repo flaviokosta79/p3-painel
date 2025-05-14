@@ -1,7 +1,6 @@
-
-import React, { createContext, useContext, useEffect, useState, ReactNode } from 'react';
-import { User as AuthUser, useAuth, UserRole } from './useAuth'; 
-import { usuários as defaultMockUsers, MockUserData } from '../db/mockData'; 
+import { createContext, useContext, useEffect, useState, type FC, type ReactNode } from 'react';
+import { type User as AuthUser, useAuth, type UserRole } from './useAuth'; 
+import { usuários as defaultMockUsers, type MockUserData } from '../db/mockData'; 
 import { toast } from '@/components/ui/use-toast'; 
 
 export interface Unit {
@@ -51,7 +50,7 @@ interface UsersProviderProps {
   children: ReactNode;
 }
 
-export const UsersProvider: React.FC<UsersProviderProps> = ({ children }) => {
+export const UsersProvider: FC<UsersProviderProps> = ({ children }) => {
   const [users, setUsers] = useState<UserData[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -61,44 +60,52 @@ export const UsersProvider: React.FC<UsersProviderProps> = ({ children }) => {
   useEffect(() => {
     setLoading(true);
     const storedUsers = localStorage.getItem('pmerj_users');
+    let usersToProcess: UserData[] = [];
+    let usersModifiedByAdminLogic = false;
+
     if (storedUsers) {
       try {
         const parsedUsers: UserData[] = JSON.parse(storedUsers);
-        
-        // Verificar se todos os usuários têm a propriedade nome
-        const validatedUsers = parsedUsers.map(user => {
-          // Se o usuário tem name, mas não tem nome (campos desalinhados)
-          if ((user as any).name && !user.nome) {
-            return {
-              ...user,
-              nome: (user as any).name
-            };
+        // Aplicar validação de nome da versão HEAD (origin/main)
+        usersToProcess = parsedUsers.map(user => {
+          if ((user as any).name && !user.nome) { // Lidar com campo 'name' legado
+            return { ...user, nome: (user as any).name };
           }
-          // Se não tem nome nem name, adicionar um nome padrão
-          if (!user.nome && !(user as any).name) {
-            return {
-              ...user,
-              nome: `Usuário ${user.id}`
-            };
+          if (!user.nome && !(user as any).name) { // Garantir que 'nome' exista
+            return { ...user, nome: `Usuário ${user.id}` }; // Nome padrão
           }
           return user;
         });
-        
-        setUsers(validatedUsers);
-        console.log('[useUsers] Usuários carregados do localStorage:', validatedUsers); // Log usuários do localStorage
+        console.log('[useUsers] Usuários carregados e validados do localStorage:', usersToProcess);
       } catch (e) {
-        console.error("Erro ao parsear usuários do localStorage, usando mock data:", e);
-        const mockUsersData: UserData[] = defaultMockUsers;
-        setUsers(mockUsersData);
-        localStorage.setItem('pmerj_users', JSON.stringify(mockUsersData));
-        console.log('[useUsers] Usuários carregados do mockData (após erro localStorage):', mockUsersData); // Log usuários do mock
+        console.error("Erro ao parsear/validar usuários do localStorage, usando mock data:", e);
+        usersToProcess = defaultMockUsers.map(u => ({...u})); 
       }
     } else {
-      const mockUsersData: UserData[] = defaultMockUsers;
-      setUsers(mockUsersData);
-      localStorage.setItem('pmerj_users', JSON.stringify(mockUsersData));
-      console.log('[useUsers] Usuários carregados do mockData (localStorage vazio):', mockUsersData); // Log usuários do mock
+      console.log('[useUsers] localStorage vazio, usando mock data.');
+      usersToProcess = defaultMockUsers.map(u => ({...u}));
     }
+
+    // Garantir que admins estejam sempre ativos (lógica do commit 4de79ab)
+    const finalCorrectedUsers = usersToProcess.map(user => {
+      if (user.perfil === 'admin' && !user.ativo) {
+        usersModifiedByAdminLogic = true;
+        return { ...user, ativo: true };
+      }
+      return user;
+    });
+
+    if (usersModifiedByAdminLogic || !storedUsers) { 
+      localStorage.setItem('pmerj_users', JSON.stringify(finalCorrectedUsers));
+      if (usersModifiedByAdminLogic) {
+        console.log('[useUsers] Admin(s) inativo(s) foram forçados para ativo e localStorage atualizado.');
+      } else if (!storedUsers) {
+        console.log('[useUsers] Mock data salvo no localStorage.');
+      }
+    }
+    
+    setUsers(finalCorrectedUsers);
+    console.log('[useUsers] Usuários carregados e processados finais:', finalCorrectedUsers);
     setLoading(false);
   }, []);
 
@@ -177,7 +184,7 @@ export const UsersProvider: React.FC<UsersProviderProps> = ({ children }) => {
       });
       toast({
         title: "Usuário Excluído",
-        description: `O usuário ${userName || 'ID: ' + userId} foi excluído com sucesso.`,
+        description: `O usuário ${userName || `ID: ${userId}`} foi excluído com sucesso.`,
       });
       return true;
     } catch (error) {
@@ -192,6 +199,17 @@ export const UsersProvider: React.FC<UsersProviderProps> = ({ children }) => {
   };
 
   const toggleUserStatus = async (id: string, active: boolean): Promise<boolean> => {
+    // Lógica de prevenção de desativação de admin do commit 4de79ab
+    const userToToggle = users.find(u => u.id === id);
+    if (userToToggle && userToToggle.perfil === 'admin' && !active) {
+      toast({
+        title: "Ação Não Permitida",
+        description: "O usuário administrador não pode ser desativado.",
+        variant: "destructive",
+      });
+      return false; // Impede a desativação do admin
+    }
+
     try {
       setUsers(prevUsers => {
         const updatedUsers = prevUsers.map(user =>
