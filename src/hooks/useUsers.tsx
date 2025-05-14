@@ -1,7 +1,7 @@
 import { createContext, useContext, useEffect, useState, type FC, type ReactNode } from 'react';
 import { type User as AuthUser, useAuth, type UserRole } from './useAuth'; 
-import { usuários as defaultMockUsers, type MockUserData } from '../db/mockData'; 
 import { toast } from '@/components/ui/use-toast'; 
+import { supabase } from '@/lib/supabaseClient'; 
 
 export interface Unit {
   id: string;
@@ -33,17 +33,6 @@ interface UsersContextType {
   getUserNameById: (id: string) => string | undefined;
 }
 
-const defaultUnits: Unit[] = [
-  { id: '1', name: '10º BPM' },
-  { id: '2', name: '28º BPM' },
-  { id: '3', name: '33º BPM' },
-  { id: '4', name: '37º BPM' },
-  { id: '5', name: '2ª CIPM' },
-  { id: 'cpa5', name: '5º CPA' }, 
-];
-
-console.log('[useUsers] defaultUnits:', defaultUnits); // Log para verificar defaultUnits
-
 const UsersContext = createContext<UsersContextType | undefined>(undefined);
 
 interface UsersProviderProps {
@@ -52,87 +41,176 @@ interface UsersProviderProps {
 
 export const UsersProvider: FC<UsersProviderProps> = ({ children }) => {
   const [users, setUsers] = useState<UserData[]>([]);
+  const [units, setUnits] = useState<Unit[]>([]);
   const [loading, setLoading] = useState(true);
-
-  // Função para gerar ID (simples para este exemplo)
-  const generateId = () => Math.random().toString(36).substr(2, 9);
 
   useEffect(() => {
     setLoading(true);
-    const storedUsers = localStorage.getItem('pmerj_users');
-    let usersToProcess: UserData[] = [];
-    let usersModifiedByAdminLogic = false;
 
-    if (storedUsers) {
-      try {
-        const parsedUsers: UserData[] = JSON.parse(storedUsers);
-        // Aplicar validação de nome da versão HEAD (origin/main)
-        usersToProcess = parsedUsers.map(user => {
-          if ((user as any).name && !user.nome) { // Lidar com campo 'name' legado
-            return { ...user, nome: (user as any).name };
-          }
-          if (!user.nome && !(user as any).name) { // Garantir que 'nome' exista
-            return { ...user, nome: `Usuário ${user.id}` }; // Nome padrão
-          }
-          return user;
+    const fetchUnits = async () => {
+      const { data, error } = await supabase
+        .from('unidades')
+        .select('id, nome'); 
+
+      if (error) {
+        console.error("Erro ao buscar unidades do Supabase:", error);
+        toast({
+          title: "Erro ao Carregar Unidades",
+          description: "Não foi possível buscar as unidades do sistema.",
+          variant: "destructive",
         });
-        console.log('[useUsers] Usuários carregados e validados do localStorage:', usersToProcess);
-      } catch (e) {
-        console.error("Erro ao parsear/validar usuários do localStorage, usando mock data:", e);
-        usersToProcess = defaultMockUsers.map(u => ({...u})); 
-      }
-    } else {
-      console.log('[useUsers] localStorage vazio, usando mock data.');
-      usersToProcess = defaultMockUsers.map(u => ({...u}));
-    }
+        return []; 
+      } 
+      return data ? data.map(unit => ({ id: unit.id, name: unit.nome })) : [];
+    };
 
-    // Garantir que admins estejam sempre ativos (lógica do commit 4de79ab)
-    const finalCorrectedUsers = usersToProcess.map(user => {
-      if (user.perfil === 'admin' && !user.ativo) {
-        usersModifiedByAdminLogic = true;
-        return { ...user, ativo: true };
-      }
-      return user;
-    });
+    const fetchUsersFromSupabase = async () => {
+      const { data: usersData, error: usersError } = await supabase
+        .from('usuarios')
+        .select('*'); 
 
-    if (usersModifiedByAdminLogic || !storedUsers) { 
-      localStorage.setItem('pmerj_users', JSON.stringify(finalCorrectedUsers));
-      if (usersModifiedByAdminLogic) {
-        console.log('[useUsers] Admin(s) inativo(s) foram forçados para ativo e localStorage atualizado.');
-      } else if (!storedUsers) {
-        console.log('[useUsers] Mock data salvo no localStorage.');
+      if (usersError) {
+        console.error("Erro ao buscar usuários do Supabase:", usersError);
+        toast({
+          title: "Erro ao Carregar Usuários",
+          description: "Não foi possível buscar os usuários do sistema.",
+          variant: "destructive",
+        });
+        return []; 
       }
-    }
-    
-    setUsers(finalCorrectedUsers);
-    console.log('[useUsers] Usuários carregados e processados finais:', finalCorrectedUsers);
-    setLoading(false);
+      
+      const processedUsers: UserData[] = usersData ? usersData.map(user => ({
+          id: user.id,
+          nome: user.nome,
+          email: user.email,
+          perfil: user.perfil as UserRole, 
+          unidadeId: user.unidade_id, 
+          ativo: user.ativo,
+      })) : [];
+      
+      return processedUsers;
+    };
+
+    const initializeData = async () => {
+      const fetchedUnits = await fetchUnits();
+      setUnits(fetchedUnits);
+      console.log('[useUsers] Unidades carregadas do Supabase:', fetchedUnits);
+
+      const supabaseUsers = await fetchUsersFromSupabase();
+      setUsers(supabaseUsers);
+      console.log('[useUsers] Usuários carregados do Supabase:', supabaseUsers);
+      
+      setLoading(false); 
+    };
+
+    initializeData();
   }, []);
 
   const addUser = async (userData: Omit<UserData, 'id' | 'ativo' | 'unidadeId'> & { unidade: Unit, senha?: string }): Promise<boolean> => {
-    try {
-      const newUser: UserData = {
-        ...userData,
-        id: generateId(),
-        ativo: true, 
-        unidadeId: userData.unidade.id, 
-        // senha é opcional e já está em userData se fornecida
-      };
-      setUsers(prevUsers => {
-        const updatedUsers = [...prevUsers, newUser];
-        localStorage.setItem('pmerj_users', JSON.stringify(updatedUsers));
-        return updatedUsers;
+    if (!userData.senha) {
+      toast({
+        title: "Erro ao Adicionar Usuário",
+        description: "A senha é obrigatória para criar um novo usuário.",
+        variant: "destructive",
       });
+      return false;
+    }
+
+    try {
+      // 1. Criar usuário no Supabase Auth
+      const { data: authData, error: authError } = await supabase.auth.signUp({
+        email: userData.email,
+        password: userData.senha,
+      });
+
+      if (authError || !authData || !authData.user) {
+        console.error("Erro ao criar usuário no Supabase Auth:", authError);
+        toast({
+          title: "Erro ao Criar Usuário (Auth)",
+          description: authError?.message || "Não foi possível criar o usuário no sistema de autenticação.",
+          variant: "destructive",
+        });
+        return false;
+      }
+
+      // Se signUp retorna uma sessão, definir explicitamente no cliente supabase-js.
+      if (authData.session) {
+        const { error: sessionError } = await supabase.auth.setSession({
+          access_token: authData.session.access_token,
+          refresh_token: authData.session.refresh_token,
+        });
+        if (sessionError) {
+          console.error("Erro ao definir a sessão após signUp:", sessionError);
+          toast({
+            title: "Erro de Sessão Pós-Registro",
+            description: `Não foi possível estabelecer a sessão do usuário após o registro: ${sessionError.message}. O perfil pode não ter sido salvo.`,
+            variant: "destructive",
+          });
+          // O usuário foi criado no Auth, mas a sessão não pôde ser definida no cliente.
+          // Isso pode impedir a inserção do perfil se a RLS for rigorosa.
+          return false;
+        }
+      } else {
+        // Se não há sessão após o signUp (ex: confirmação de e-mail pendente e configurada para não emitir sessão imediata)
+        console.warn("Nenhuma sessão retornada ou definida após signUp. A inserção do perfil dependerá da política de RLS permitir operações por usuários recém-registrados sem sessão ativa no cliente ou com confirmação pendente.");
+        // Não necessariamente um erro fatal aqui, pois a RLS pode permitir a inserção
+        // baseada no token que o signUp implicitamente usa, mas é um aviso.
+      }
+      
+      const newAuthUserId = authData.user.id;
+
+      // 2. Inserir perfil na tabela 'usuarios'
+      const userProfileData = {
+        id: newAuthUserId, 
+        nome: userData.nome,
+        email: userData.email,
+        perfil: userData.perfil,
+        unidade_id: userData.unidade.id, 
+        ativo: true, 
+      };
+
+      const { error: insertError } = await supabase
+        .from('usuarios')
+        .insert(userProfileData);
+
+      if (insertError) {
+        console.error("Erro ao inserir perfil do usuário no Supabase:", insertError);
+        // Aqui, idealmente, deveríamos tentar deletar o usuário do Auth se a inserção do perfil falhar.
+        // Por simplicidade, vamos apenas notificar o erro por enquanto.
+        toast({
+          title: "Erro ao Salvar Perfil do Usuário",
+          description: insertError.message || "Não foi possível salvar os detalhes do perfil do usuário.",
+          variant: "destructive",
+        });
+        // Poderia ser útil tentar reverter a criação do usuário no Auth aqui.
+        // Ex: await supabase.auth.admin.deleteUser(newAuthUserId) // Requer privilégios de admin
+        return false;
+      }
+
+      // 3. Atualizar estado local se tudo correu bem
+      const newUserForState: UserData = {
+        id: newAuthUserId,
+        nome: userData.nome,
+        email: userData.email,
+        perfil: userData.perfil,
+        unidadeId: userData.unidade.id,
+        ativo: true,
+        // Não armazenamos a senha no estado local
+      };
+
+      setUsers(prevUsers => [...prevUsers, newUserForState]);
+      
       toast({
         title: "Usuário Adicionado",
         description: `O usuário ${userData.nome} foi adicionado com sucesso.`,
       });
       return true;
+
     } catch (error) {
-      console.error("Erro ao adicionar usuário:", error);
+      console.error("Erro inesperado ao adicionar usuário:", error);
       toast({
-        title: "Erro ao adicionar usuário",
-        description: "Ocorreu um erro ao tentar adicionar o novo usuário.",
+        title: "Erro Inesperado",
+        description: "Ocorreu um erro inesperado ao tentar adicionar o novo usuário.",
         variant: "destructive",
       });
       return false;
@@ -148,12 +226,10 @@ export const UsersProvider: FC<UsersProviderProps> = ({ children }) => {
             if (userData.unidade) {
               updatedUser.unidadeId = userData.unidade.id;
             }
-            // delete (updatedUser as any).unidade; 
             return updatedUser;
           }
           return user;
         });
-        localStorage.setItem('pmerj_users', JSON.stringify(updatedUsers));
         return updatedUsers;
       });
       toast({
@@ -179,7 +255,6 @@ export const UsersProvider: FC<UsersProviderProps> = ({ children }) => {
         const userToDelete = prevUsers.find(u => u.id === userId);
         if (userToDelete) userName = userToDelete.nome;
         const updatedUsers = prevUsers.filter(user => user.id !== userId);
-        localStorage.setItem('pmerj_users', JSON.stringify(updatedUsers));
         return updatedUsers;
       });
       toast({
@@ -199,7 +274,6 @@ export const UsersProvider: FC<UsersProviderProps> = ({ children }) => {
   };
 
   const toggleUserStatus = async (id: string, active: boolean): Promise<boolean> => {
-    // Lógica de prevenção de desativação de admin do commit 4de79ab
     const userToToggle = users.find(u => u.id === id);
     if (userToToggle && userToToggle.perfil === 'admin' && !active) {
       toast({
@@ -207,7 +281,7 @@ export const UsersProvider: FC<UsersProviderProps> = ({ children }) => {
         description: "O usuário administrador não pode ser desativado.",
         variant: "destructive",
       });
-      return false; // Impede a desativação do admin
+      return false; 
     }
 
     try {
@@ -215,7 +289,6 @@ export const UsersProvider: FC<UsersProviderProps> = ({ children }) => {
         const updatedUsers = prevUsers.map(user =>
           user.id === id ? { ...user, ativo: active } : user
         );
-        localStorage.setItem('pmerj_users', JSON.stringify(updatedUsers));
         return updatedUsers;
       });
       toast({
@@ -239,11 +312,11 @@ export const UsersProvider: FC<UsersProviderProps> = ({ children }) => {
   };
 
   const getUnits = (): Unit[] => {
-    return defaultUnits;
+    return units; 
   };
 
   const getUnitNameById = (id: string): string | undefined => {
-    const unit = defaultUnits.find(u => u.id === id);
+    const unit = units.find(u => u.id === id);
     return unit?.name;
   };
 
@@ -258,7 +331,7 @@ export const UsersProvider: FC<UsersProviderProps> = ({ children }) => {
 
   const value = {
     users,
-    units: defaultUnits,
+    units,
     loading,
     addUser,
     updateUser,
