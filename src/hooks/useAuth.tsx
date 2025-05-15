@@ -1,9 +1,10 @@
+
 import type React from 'react';
 import { createContext, useState, useEffect, useContext, useCallback } from 'react';
 import type { ReactNode } from 'react';
 import type { Session, User as AuthUser } from '@supabase/supabase-js';
-import { supabase } from '../lib/supabaseClient';
-import { toast } from '@/components/ui/use-toast';
+import { supabase, checkSupabaseConnection } from '../lib/supabaseClient';
+import { toast } from '@/hooks/use-toast';
 
 export enum UserRole {
     ADMIN = 'admin',
@@ -33,6 +34,8 @@ interface AuthContextType {
   login: (credentials: Credentials) => Promise<{ user: AuthUser | null; session: Session | null; error: Error | null; }>;
   logout: () => Promise<void>;
   isAuthenticated: boolean;
+  connectionStatus: { connected: boolean; lastChecked: Date | null; error?: string };
+  checkConnection: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -42,39 +45,72 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     const [session, setSession] = useState<Session | null>(null);
     const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
     const [isLoading, setIsLoading] = useState(true);
+    const [connectionStatus, setConnectionStatus] = useState<{ connected: boolean; lastChecked: Date | null; error?: string }>({
+      connected: false,
+      lastChecked: null
+    });
+
+    const checkConnection = async () => {
+      const result = await checkSupabaseConnection();
+      setConnectionStatus({
+        connected: result.connected,
+        lastChecked: new Date(),
+        error: result.error
+      });
+      
+      if (!result.connected) {
+        toast({
+          title: "Problema de conexão",
+          description: `Não foi possível conectar ao Supabase: ${result.error}`,
+          variant: "destructive",
+        });
+      }
+      
+      return result;
+    };
 
     useEffect(() => {
-        setIsLoading(true); 
+      setIsLoading(true); 
+      
+      // Check connection on initialization
+      checkConnection();
 
-        const { data: authListener } = supabase.auth.onAuthStateChange((event, currentSession) => {
-            setUser(currentSession?.user ?? null);
-            setSession(currentSession ?? null);
-            if (!currentSession) {
-                setUserProfile(null); 
-                setIsLoading(false); 
-            }
-        });
+      const { data: authListener } = supabase.auth.onAuthStateChange((event, currentSession) => {
+          setUser(currentSession?.user ?? null);
+          setSession(currentSession ?? null);
+          if (!currentSession) {
+              setUserProfile(null); 
+              setIsLoading(false); 
+          }
+      });
 
-        const checkInitialSession = async () => {
-            try {
-                const { data: { session: initialSess } } = await supabase.auth.getSession();
-                if (!initialSess) {
-                    setIsLoading(false);
-                }
-            } catch (error) {
-                console.error('Erro ao buscar sessão inicial:', error);
-                setIsLoading(false); 
-            }
-        };
-        checkInitialSession();
+      const checkInitialSession = async () => {
+          try {
+              const { data: { session: initialSess } } = await supabase.auth.getSession();
+              if (!initialSess) {
+                  setIsLoading(false);
+              }
+          } catch (error) {
+              console.error('Erro ao buscar sessão inicial:', error);
+              setIsLoading(false); 
+          }
+      };
+      checkInitialSession();
 
-        return () => {
-            authListener.subscription.unsubscribe();
-        };
+      return () => {
+          authListener.subscription.unsubscribe();
+      };
     }, []); 
 
     const fetchProfileAndSetState = useCallback(async (currentAuthUser: AuthUser, eventName: string) => {
         try {
+            // First check the connection status
+            const connectionCheck = await checkConnection();
+            if (!connectionCheck.connected) {
+              setIsLoading(false);
+              return;
+            }
+            
             // Query de teste simples para verificar acesso à tabela
             const { error: testError } = await supabase
                 .from('usuarios')
@@ -84,6 +120,11 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
             if (testError) {
                 console.error('Erro na query de teste:', testError);
+                toast({
+                  title: "Erro de acesso",
+                  description: `Problema ao acessar os dados do usuário: ${testError.message}`,
+                  variant: "destructive",
+                });
             }
 
             // Query completa para buscar o perfil do usuário
@@ -95,6 +136,11 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
             if (profileError) {
                 console.error('Erro ao buscar perfil do usuário:', profileError);
+                toast({
+                  title: "Erro de perfil",
+                  description: `Não foi possível carregar seu perfil: ${profileError.message}`,
+                  variant: "destructive",
+                });
                 setUserProfile(null);
             } else if (profileData) {
                 let unidadeNome: string | null = null;
@@ -123,11 +169,16 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
             }
         } catch (e) {
             console.error('Erro inesperado ao buscar perfil:', e);
+            toast({
+              title: "Erro de sistema",
+              description: "Ocorreu um erro ao buscar seus dados de perfil.",
+              variant: "destructive",
+            });
             setUserProfile(null);
         } finally {
             setIsLoading(false);
         }
-    }, []); 
+    }, [checkConnection]); 
 
     useEffect(() => {
         if (user) {
@@ -138,11 +189,27 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
     const login = async (credentials: Credentials) => {
         setIsLoading(true); 
+        
+        // Check connection before attempting login
+        const connectionCheck = await checkConnection();
+        if (!connectionCheck.connected) {
+          setIsLoading(false);
+          return { 
+            user: null, 
+            session: null, 
+            error: new Error(`Problema de conexão ao Supabase: ${connectionCheck.error || 'Erro desconhecido'}`) 
+          };
+        }
+        
         try {
             const { data, error } = await supabase.auth.signInWithPassword(credentials);
             if (error) {
                 console.error('Erro de login:', error);
-                toast({ title: "Erro de Login", description: error.message, variant: "destructive" });
+                toast({ 
+                  title: "Erro de Login", 
+                  description: error.message, 
+                  variant: "destructive" 
+                });
                 setIsLoading(false); 
                 return { user: null, session: null, error };
             }
@@ -150,7 +217,11 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         } catch (e: unknown) { 
             const error = e instanceof Error ? e : new Error('Erro desconhecido durante o login');
             console.error('[AuthProvider login] Exceção:', error);
-            toast({ title: "Erro Crítico", description: error.message, variant: "destructive" });
+            toast({ 
+              title: "Erro Crítico", 
+              description: error.message, 
+              variant: "destructive" 
+            });
             setIsLoading(false);
             return { user: null, session: null, error };
         }
@@ -160,9 +231,13 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         const { error } = await supabase.auth.signOut();
         if (error) {
             console.error('Erro ao sair:', error);
-            toast({ title: "Erro ao Sair", description: error.message, variant: "destructive" });
-            setIsLoading(false);
+            toast({ 
+              title: "Erro ao Sair", 
+              description: error.message, 
+              variant: "destructive" 
+            });
         }
+        setIsLoading(false);
     };
 
     const value: AuthContextType = {
@@ -173,6 +248,8 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         login,
         logout,
         isAuthenticated: !!user && !!userProfile,
+        connectionStatus,
+        checkConnection
     };
 
     return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
