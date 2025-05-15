@@ -1,187 +1,187 @@
-import { createContext, useContext, useState, ReactNode, useEffect } from 'react';
+import type React from 'react';
+import { createContext, useState, useEffect, useContext, useCallback } from 'react';
+import type { ReactNode } from 'react';
+import type { Session, User as AuthUser } from '@supabase/supabase-js';
+import { supabase } from '../lib/supabaseClient';
+import { toast } from '@/components/ui/use-toast';
 
-// Tipos
-export type UserRole = 'admin' | 'usuario';
-
-export interface Unit {
-  id: string;
-  name: string;
+export enum UserRole {
+    ADMIN = 'admin',
+    USUARIO = 'usuario',
 }
 
-export interface User {
+interface UserProfile {
   id: string;
-  name: string;
+  nome: string;
   email: string;
-  role: UserRole;
-  unit: Unit;
-  isAdmin: boolean; // Nova propriedade
+  perfil: UserRole;
+  ativo: boolean;
+  unidade_id: string | null;
+  unidade_nome: string | null;
+}
+
+interface Credentials {
+  email: string;
+  password: string;
 }
 
 interface AuthContextType {
-  user: User | null;
-  login: (email: string, password: string) => Promise<boolean>;
-  logout: () => void;
+  user: AuthUser | null;
+  session: Session | null;
+  userProfile: UserProfile | null;
+  isLoading: boolean;
+  login: (credentials: Credentials) => Promise<{ user: AuthUser | null; session: Session | null; error: Error | null; }>;
+  logout: () => Promise<void>;
   isAuthenticated: boolean;
-  isLoading: boolean; // Nova propriedade para controlar o carregamento
 }
-
-// Removemos os dados mockados
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-export function AuthProvider({ children }: { children: ReactNode }) {
-  const [user, setUser] = useState<User | null>(null);
-  const [isLoading, setIsLoading] = useState(true); // Estado para controlar carregamento inicial
-  
-  useEffect(() => {
-    // Verificar se há um usuário no localStorage
-    const loadUser = () => {
-      try {
-        const storedUser = localStorage.getItem('pmerj_user');
-        if (storedUser) {
-          setUser(JSON.parse(storedUser));
-        }
-      } catch (error) {
-        console.error('Erro ao carregar usuário do localStorage:', error);
-        localStorage.removeItem('pmerj_user'); // Remove dados inválidos
-      } finally {
-        setIsLoading(false); // Finaliza o carregamento independente do resultado
-      }
-    };
-    
-    loadUser();
-  }, []);
-  
-  const login = async (email: string, password: string): Promise<boolean> => {
-    try {
-      console.log('[Auth] Tentativa de login com email:', email); // Log
-      // Em um cenário real, esta solicitação seria feita a uma API
-      // Agora vamos verificar no localStorage (pmerj_users) se existe um usuário com esse email
-      const storedUsers = localStorage.getItem('pmerj_users');
-      if (!storedUsers) {
-        console.log('[Auth] Nenhum usuário encontrado em pmerj_users.'); // Log
-        return false;
-      }
-      
-      const users = JSON.parse(storedUsers);
-      console.log('[Auth] Usuários de pmerj_users:', users); // Log
-      
-      // Obter as senhas armazenadas
-      const userPasswords = JSON.parse(localStorage.getItem('pmerj_user_passwords') || '{}');
-      console.log('[Auth] Senhas de pmerj_user_passwords:', userPasswords); // Log
-      
-      // Verificar credenciais
-      // Ajuste para usar 'nome' e 'perfil' como em UserData, e verificar se está ativo
-      const foundUser = users.find((u: any) => u.email === email && u.ativo !== false); 
-      
-      console.log('[Auth] Usuário encontrado (foundUser):', foundUser); // Log
+export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
+    const [user, setUser] = useState<AuthUser | null>(null);
+    const [session, setSession] = useState<Session | null>(null);
+    const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
+    const [isLoading, setIsLoading] = useState(true);
 
-      if (foundUser) {
-        // Verificar a senha do usuário
-        const userPassword = userPasswords[foundUser.id];
-        console.log('[Auth] Senha do usuário (userPassword):', userPassword); // Log
-        console.log('[Auth] Senha fornecida:', password); // Log
-        
-        // Se a senha armazenada corresponder à senha fornecida ou se for uma das senhas padrão para desenvolvimento
-        if (userPassword === password || password === 'admin123' || password === 'user123') {
-          console.log('[Auth] Senha compatível.'); // Log
-          // Cria o objeto de usuário autenticado
-          // ATENÇÃO AQUI: Mapear corretamente de UserData (foundUser) para User (userObj)
-          const userObj: User = {
-            id: foundUser.id,
-            name: foundUser.nome, // Correto: de UserData.nome
-            email: foundUser.email,
-            role: foundUser.perfil, // Correto: de UserData.perfil
-            // Para 'unit', precisamos buscar o objeto Unit com base em foundUser.unidadeId
-            // Esta lógica pode precisar ser mais robusta ou buscar de useUsers se disponível aqui
-            // Por simplicidade, vamos assumir que defaultUnits de useUsers é acessível ou que pmerj_users já tem o objeto unit
-            // Se pmerj_users armazena apenas unidadeId, isso precisa de ajuste.
-            // Por ora, vamos ver o que foundUser.unit contém (provavelmente undefined se pmerj_users só tem unidadeId)
-            unit: foundUser.unidadeId ? { id: foundUser.unidadeId, name: localStorage.getItem(`unit_name_${foundUser.unidadeId}`) || 'Unidade Desconhecida' } : { id: 'unknown', name: 'Unidade Desconhecida' }, // Tentativa de reconstruir, idealmente viria de useUsers ou um DB de unidades
-            isAdmin: foundUser.perfil === 'admin' 
-          };
-          console.log('[Auth] Objeto de usuário para autenticação (userObj):', userObj); // Log
-          
-          // Armazena no estado e localStorage
-          setUser(userObj);
-          localStorage.setItem('pmerj_user', JSON.stringify(userObj));
-          
-          // Atualiza a data do último login
-          const updatedUsers = users.map((u: any) => {
-            if (u.id === foundUser.id) {
-              return {
-                ...u,
-                lastLogin: new Date().toISOString()
-              };
+    useEffect(() => {
+        setIsLoading(true); 
+
+        const { data: authListener } = supabase.auth.onAuthStateChange((event, currentSession) => {
+            setUser(currentSession?.user ?? null);
+            setSession(currentSession ?? null);
+            if (!currentSession) {
+                setUserProfile(null); 
+                setIsLoading(false); 
             }
-            return u;
-          });
-          
-          localStorage.setItem('pmerj_users', JSON.stringify(updatedUsers));
-          
-          return true;
+        });
+
+        const checkInitialSession = async () => {
+            try {
+                const { data: { session: initialSess } } = await supabase.auth.getSession();
+                if (!initialSess) {
+                    setIsLoading(false);
+                }
+            } catch (error) {
+                console.error('Erro ao buscar sessão inicial:', error);
+                setIsLoading(false); 
+            }
+        };
+        checkInitialSession();
+
+        return () => {
+            authListener.subscription.unsubscribe();
+        };
+    }, []); 
+
+    const fetchProfileAndSetState = useCallback(async (currentAuthUser: AuthUser, eventName: string) => {
+        try {
+            // Query de teste simples para verificar acesso à tabela
+            const { error: testError } = await supabase
+                .from('usuarios')
+                .select('id, nome')
+                .eq('id', currentAuthUser.id)
+                .single();
+
+            if (testError) {
+                console.error('Erro na query de teste:', testError);
+            }
+
+            // Query completa para buscar o perfil do usuário
+            const { data: profileData, error: profileError } = await supabase
+                .from('usuarios')
+                .select('id, nome, email, perfil, ativo, unidade_id, unidade:unidades (nome)')
+                .eq('id', currentAuthUser.id)
+                .single();
+
+            if (profileError) {
+                console.error('Erro ao buscar perfil do usuário:', profileError);
+                setUserProfile(null);
+            } else if (profileData) {
+                let unidadeNome: string | null = null;
+                if (profileData.unidade) {
+                    if (Array.isArray(profileData.unidade)) {
+                        if (profileData.unidade.length > 0 && profileData.unidade[0]) {
+                            unidadeNome = profileData.unidade[0].nome;
+                        }
+                    } else {
+                        unidadeNome = (profileData.unidade as { nome: string | null }).nome;
+                    }
+                }
+                const fetchedProfile: UserProfile = {
+                    id: profileData.id,
+                    nome: profileData.nome,
+                    email: profileData.email,
+                    perfil: profileData.perfil as UserRole,
+                    ativo: profileData.ativo,
+                    unidade_id: profileData.unidade_id,
+                    unidade_nome: unidadeNome,
+                };
+                setUserProfile(fetchedProfile);
+            } else {
+                console.warn(`Nenhum perfil encontrado para o usuário (ID: ${currentAuthUser.id}).`);
+                setUserProfile(null);
+            }
+        } catch (e) {
+            console.error('Erro inesperado ao buscar perfil:', e);
+            setUserProfile(null);
+        } finally {
+            setIsLoading(false);
         }
-      }
-      
-      // Se não houver usuários cadastrados, permitir login com admin padrão
-      if (users.length === 0 && email === 'admin@pmerj.gov.br' && password === 'admin123') {
-        // Cria um usuário admin padrão
-        const defaultAdmin: User = {
-          id: '1',
-          name: 'Admin Padrão',
-          email: 'admin@pmerj.gov.br',
-          role: 'admin',
-          unit: { id: '1', name: 'Comando Central' },
-          isAdmin: true // Adiciona a nova propriedade
-        };
-        
-        setUser(defaultAdmin);
-        localStorage.setItem('pmerj_user', JSON.stringify(defaultAdmin));
-        
-        // Adiciona o admin ao localStorage de usuários
-        const adminWithExtras = {
-          ...defaultAdmin,
-          createdAt: new Date().toISOString(),
-          active: true
-        };
-        
-        localStorage.setItem('pmerj_users', JSON.stringify([adminWithExtras]));
-        
-        // Armazena a senha padrão do admin
-        const adminPasswords = {};
-        adminPasswords['1'] = 'admin123';
-        localStorage.setItem('pmerj_user_passwords', JSON.stringify(adminPasswords));
-        
-        return true;
-      }
-      
-      return false;
-    } catch (error) {
-      console.error('Erro durante o login:', error);
-      return false;
-    }
-  };
-  
-  const logout = () => {
-    setUser(null);
-    localStorage.removeItem('pmerj_user');
-  };
-  
-  const value = {
-    user,
-    login,
-    logout,
-    isAuthenticated: !!user,
-    isLoading,
-  };
-  
-  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
-}
+    }, []); 
+
+    useEffect(() => {
+        if (user) {
+            setIsLoading(true); 
+            fetchProfileAndSetState(user, 'PROFILE_FETCH_EFFECT');
+        }
+    }, [user, fetchProfileAndSetState]); 
+
+    const login = async (credentials: Credentials) => {
+        setIsLoading(true); 
+        try {
+            const { data, error } = await supabase.auth.signInWithPassword(credentials);
+            if (error) {
+                console.error('Erro de login:', error);
+                toast({ title: "Erro de Login", description: error.message, variant: "destructive" });
+                setIsLoading(false); 
+                return { user: null, session: null, error };
+            }
+            return { user: data.user, session: data.session, error: null };
+        } catch (e: unknown) { 
+            const error = e instanceof Error ? e : new Error('Erro desconhecido durante o login');
+            console.error('[AuthProvider login] Exceção:', error);
+            toast({ title: "Erro Crítico", description: error.message, variant: "destructive" });
+            setIsLoading(false);
+            return { user: null, session: null, error };
+        }
+    };
+
+    const logout = async () => {
+        const { error } = await supabase.auth.signOut();
+        if (error) {
+            console.error('Erro ao sair:', error);
+            toast({ title: "Erro ao Sair", description: error.message, variant: "destructive" });
+            setIsLoading(false);
+        }
+    };
+
+    const value: AuthContextType = {
+        user,
+        session,
+        userProfile,
+        isLoading,
+        login,
+        logout,
+        isAuthenticated: !!user && !!userProfile,
+    };
+
+    return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
+};
 
 export const useAuth = () => {
-  const context = useContext(AuthContext);
-  if (context === undefined) {
-    throw new Error('useAuth deve ser usado dentro de um AuthProvider');
-  }
-  return context;
+    const context = useContext(AuthContext);
+    if (context === undefined) {
+        throw new Error('useAuth deve ser usado dentro de um AuthProvider');
+    }
+    return context;
 };

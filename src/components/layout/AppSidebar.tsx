@@ -11,13 +11,13 @@ import {
 } from "@/components/ui/sidebar";
 import { Home, File, Users, FileText, Settings, Archive, LayoutList } from "lucide-react";
 import { NavLink } from "react-router-dom";
-import { useAuth } from "@/hooks/useAuth";
+import { useAuth, UserRole } from "@/hooks/useAuth";
 import brazilianFlag from "@/assets/brazilian-flag.svg";
 import newLogo from "@/assets/5cpa.png"; // Novo logo
 
 export function AppSidebar() {
-  const { user } = useAuth();
-  const isAdmin = user?.role === 'admin';
+  const { userProfile } = useAuth();
+  const isAdmin = userProfile?.perfil === UserRole.ADMIN;
   
   return (
     <Sidebar>

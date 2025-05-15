@@ -3,7 +3,7 @@ import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
-import { AuthProvider } from "@/hooks/useAuth";
+import { AuthProvider, UserRole } from "@/hooks/useAuth";
 import { DocumentsProvider } from "@/hooks/useDocuments";
 import { UsersProvider } from "@/hooks/useUsers";
 import { DocumentRequirementsProvider } from "@/hooks/DocumentRequirementsProvider";
@@ -98,7 +98,7 @@ const App = () => (
                     <Route
                       path="/admin/documents"
                       element={
-                        <ProtectedRoute requiredRole="admin">
+                        <ProtectedRoute requiredRole={UserRole.ADMIN}>
                           <AdminDocumentsList />
                         </ProtectedRoute>
                       }
@@ -106,7 +106,7 @@ const App = () => (
                     <Route
                       path="/admin/users"
                       element={
-                        <ProtectedRoute requiredRole="admin">
+                        <ProtectedRoute requiredRole={UserRole.ADMIN}>
                           <AdminUsersList />
                         </ProtectedRoute>
                       }
@@ -114,7 +114,7 @@ const App = () => (
                     <Route
                       path="/admin/users/new"
                       element={
-                        <ProtectedRoute requiredRole="admin">
+                        <ProtectedRoute requiredRole={UserRole.ADMIN}>
                           <AdminNewUser />
                         </ProtectedRoute>
                       }
@@ -122,7 +122,7 @@ const App = () => (
                     <Route
                       path="/admin/users/edit/:id"
                       element={
-                        <ProtectedRoute requiredRole="admin">
+                        <ProtectedRoute requiredRole={UserRole.ADMIN}>
                           <AdminEditUser />
                         </ProtectedRoute>
                       }
@@ -130,7 +130,7 @@ const App = () => (
                     <Route
                       path="/admin/missions"
                       element={
-                        <ProtectedRoute requiredRole="admin">
+                        <ProtectedRoute requiredRole={UserRole.ADMIN}>
                           <AdminDailyMissions />
                         </ProtectedRoute>
                       }

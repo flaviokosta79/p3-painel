@@ -1,4 +1,4 @@
-import { useState, FormEvent } from "react";
+import { useState, type FormEvent } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
@@ -29,14 +29,15 @@ const Login = () => {
     
     try {
       setIsLoading(true);
-      const success = await login(email, password);
+      const result = await login({ email, password });
       
-      if (success) {
+      if (!result.error && result.user) {
         navigate("/");
       } else {
+        const errorMessage = result.error?.message || "E-mail ou senha incorretos.";
         toast({
           title: "Erro de autenticação",
-          description: "E-mail ou senha incorretos.",
+          description: errorMessage,
           variant: "destructive",
         });
       }
@@ -91,9 +92,9 @@ const Login = () => {
               <div className="space-y-2">
                 <div className="flex items-center justify-between">
                   <Label htmlFor="password">Senha</Label>
-                  <a
-                    href="#"
-                    className="text-sm text-pmerj-blue hover:underline"
+                  <button
+                    type="button"
+                    className="text-sm text-pmerj-blue hover:underline focus:outline-none"
                     onClick={(e) => {
                       e.preventDefault();
                       toast({
@@ -103,7 +104,7 @@ const Login = () => {
                     }}
                   >
                     Esqueceu a senha?
-                  </a>
+                  </button>
                 </div>
                 <Input
                   id="password"

@@ -94,11 +94,9 @@ export const UsersProvider: FC<UsersProviderProps> = ({ children }) => {
     const initializeData = async () => {
       const fetchedUnits = await fetchUnits();
       setUnits(fetchedUnits);
-      console.log('[useUsers] Unidades carregadas do Supabase:', fetchedUnits);
 
       const supabaseUsers = await fetchUsersFromSupabase();
       setUsers(supabaseUsers);
-      console.log('[useUsers] Usuários carregados do Supabase:', supabaseUsers);
       
       setLoading(false); 
     };
@@ -249,6 +247,8 @@ export const UsersProvider: FC<UsersProviderProps> = ({ children }) => {
         });
         return true;
       }
+
+      console.log("[updateUser] Tentando atualizar tabela 'usuarios'. UserID:", userId, "Dados para atualizar:", dataToUpdate);
 
       const { error } = await supabase
         .from('usuarios')
