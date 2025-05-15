@@ -32,23 +32,52 @@ export const supabase = createClient(
 );
 
 // Helper function to check if Supabase connection is working
-export async function checkSupabaseConnection() {
+export interface ConnectionStatus {
+  connected: boolean;
+  error?: string;
+}
+
+export async function checkSupabaseConnection(): Promise<ConnectionStatus> {
   try {
     if (!supabaseUrl || !supabaseAnonKey) {
+      console.error("Supabase configuration error:", {
+        hasUrl: !!supabaseUrl,
+        hasKey: !!supabaseAnonKey,
+        url: supabaseUrl || 'Not set',
+        keyLength: supabaseAnonKey?.length || 0
+      });
       return { 
         connected: false, 
         error: "Missing Supabase URL or Anonymous Key in environment variables. Please set VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY." 
       };
     }
     
-    // Simple ping to see if we can connect to Supabase
-    const { error } = await supabase.from('usuarios').select('count', { count: 'exact' }).limit(1);
-    
-    if (error) {
-      console.error("Supabase connection test failed:", error.message);
-      return { connected: false, error: error.message };
+    // Test the connection with a simple query
+    // Apenas log em desenvolvimento
+    if (import.meta.env.DEV && import.meta.env.VITE_DEBUG_LOGS === 'true') {
+      console.log('Testing Supabase connection to:', supabaseUrl);
     }
     
+    const { data, error } = await supabase
+      .from('usuarios')
+      .select('count', { count: 'exact' })
+      .limit(1);
+    
+    if (error) {
+      console.error("Supabase connection test failed:", {
+        error: error.message,
+        details: error.details
+      });
+      return { 
+        connected: false, 
+        error: `Supabase connection failed: ${error.message}` 
+      };
+    }
+    
+    // Apenas log em desenvolvimento
+    if (import.meta.env.DEV && import.meta.env.VITE_DEBUG_LOGS === 'true') {
+      console.log('Supabase connection successful:', data);
+    }
     return { connected: true };
   } catch (err) {
     const errorMessage = err instanceof Error ? err.message : 'Unknown error';

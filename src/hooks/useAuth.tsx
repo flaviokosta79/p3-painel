@@ -64,7 +64,7 @@ interface AuthContextType {
   logout: () => Promise<void>;
   isAuthenticated: boolean;
   connectionStatus: { connected: boolean; lastChecked: Date | null; error?: string };
-  checkConnection: () => Promise<{ connected: boolean; error?: string }>;
+  checkConnection: (showToast?: boolean) => Promise<{ connected: boolean; error?: string }>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -80,56 +80,76 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       lastChecked: null
     });
 
-    const checkConnection = async () => {
-      const result = await checkSupabaseConnection();
-      setConnectionStatus({
-        connected: result.connected,
-        lastChecked: new Date(),
-        error: result.error
-      });
-      
-      if (!result.connected) {
-        toast({
-          title: "Problema de conexão",
-          description: `Não foi possível conectar ao Supabase: ${result.error}`,
-          variant: "destructive",
-        });
+    // Função para verificar a conexão com o Supabase (com throttling para evitar múltiplas chamadas)
+    const checkConnection = useCallback(async (showToast = true) => {
+      // Verifica se já foi verificado recentemente (últimos 30 segundos)
+      const now = new Date();
+      if (connectionStatus.lastChecked && 
+          (now.getTime() - connectionStatus.lastChecked.getTime() < 30000) &&
+          connectionStatus.connected) {
+        return { connected: connectionStatus.connected };
       }
       
-      return result;
-    };
+      try {
+        // Apenas log em desenvolvimento
+        if (import.meta.env.DEV && import.meta.env.VITE_DEBUG_LOGS === 'true') {
+          console.log('Verificando conexão com Supabase...');
+        }
+        
+        const result = await checkSupabaseConnection();
+        
+        setConnectionStatus({
+          connected: result.connected,
+          lastChecked: now,
+          error: result.error
+        });
+        
+        if (!result.connected && showToast) {
+          toast({
+            title: "Problema de conexão",
+            description: `Não foi possível conectar ao Supabase: ${result.error}`,
+            variant: "destructive",
+          });
+        }
+        
+        return result;
+      } catch (error) {
+        console.error('Erro ao verificar conexão:', error);
+        return { connected: false, error: 'Erro ao verificar conexão' };
+      }
+    }, [connectionStatus]);
 
     useEffect(() => {
       setIsLoading(true); 
       
-      // Check connection on initialization
+      // Check connection only once on initialization
       checkConnection();
 
       const { data: authListener } = supabase.auth.onAuthStateChange((event, currentSession) => {
-          setUser(currentSession?.user ?? null);
-          setSession(currentSession ?? null);
-          if (!currentSession) {
-              setUserProfile(null);
-              setMappedUser(null); 
-              setIsLoading(false); 
-          }
+        setUser(currentSession?.user ?? null);
+        setSession(currentSession ?? null);
+        if (!currentSession) {
+          setUserProfile(null);
+          setMappedUser(null); 
+          setIsLoading(false); 
+        }
       });
 
       const checkInitialSession = async () => {
-          try {
-              const { data: { session: initialSess } } = await supabase.auth.getSession();
-              if (!initialSess) {
-                  setIsLoading(false);
-              }
-          } catch (error) {
-              console.error('Erro ao buscar sessão inicial:', error);
-              setIsLoading(false); 
+        try {
+          const { data: { session: initialSess } } = await supabase.auth.getSession();
+          if (!initialSess) {
+            setIsLoading(false);
           }
+        } catch (error) {
+          console.error('Erro ao buscar sessão inicial:', error);
+          setIsLoading(false); 
+        }
       };
       checkInitialSession();
 
       return () => {
-          authListener.subscription.unsubscribe();
+        authListener.subscription.unsubscribe();
       };
     }, []); 
 
@@ -143,158 +163,190 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     }, [userProfile]);
 
     const fetchProfileAndSetState = useCallback(async (currentAuthUser: AuthUser, eventName: string) => {
-        try {
-            // First check the connection status
-            const connectionCheck = await checkConnection();
-            if (!connectionCheck.connected) {
-              setIsLoading(false);
-              return;
-            }
-            
-            // Query de teste simples para verificar acesso à tabela
-            const { error: testError } = await supabase
-                .from('usuarios')
-                .select('id, nome')
-                .eq('id', currentAuthUser.id)
-                .single();
-
-            if (testError) {
-                console.error('Erro na query de teste:', testError);
-                toast({
-                  title: "Erro de acesso",
-                  description: `Problema ao acessar os dados do usuário: ${testError.message}`,
-                  variant: "destructive",
-                });
-            }
-
-            // Query completa para buscar o perfil do usuário
-            const { data: profileData, error: profileError } = await supabase
-                .from('usuarios')
-                .select('id, nome, email, perfil, ativo, unidade_id, unidade:unidades (nome)')
-                .eq('id', currentAuthUser.id)
-                .single();
-
-            if (profileError) {
-                console.error('Erro ao buscar perfil do usuário:', profileError);
-                toast({
-                  title: "Erro de perfil",
-                  description: `Não foi possível carregar seu perfil: ${profileError.message}`,
-                  variant: "destructive",
-                });
-                setUserProfile(null);
-                setMappedUser(null);
-            } else if (profileData) {
-                let unidadeNome: string | null = null;
-                if (profileData.unidade) {
-                    if (Array.isArray(profileData.unidade)) {
-                        if (profileData.unidade.length > 0 && profileData.unidade[0]) {
-                            unidadeNome = profileData.unidade[0].nome;
-                        }
-                    } else {
-                        unidadeNome = (profileData.unidade as { nome: string | null }).nome;
-                    }
-                }
-                const fetchedProfile: UserProfile = {
-                    id: profileData.id,
-                    nome: profileData.nome,
-                    email: profileData.email,
-                    perfil: profileData.perfil as UserRole,
-                    ativo: profileData.ativo,
-                    unidade_id: profileData.unidade_id,
-                    unidade_nome: unidadeNome,
-                };
-                setUserProfile(fetchedProfile);
-                // mappedUser will be updated by the useEffect
-            } else {
-                console.warn(`Nenhum perfil encontrado para o usuário (ID: ${currentAuthUser.id}).`);
-                setUserProfile(null);
-                setMappedUser(null);
-            }
-        } catch (e) {
-            console.error('Erro inesperado ao buscar perfil:', e);
-            toast({
-              title: "Erro de sistema",
-              description: "Ocorreu um erro ao buscar seus dados de perfil.",
-              variant: "destructive",
-            });
-            setUserProfile(null);
-            setMappedUser(null);
-        } finally {
+      try {
+        // Check connection only if it's not already known to be connected
+        if (!connectionStatus.connected) {
+          const connectionCheck = await checkConnection(false); // Don't show toast for profile fetch
+          if (!connectionCheck.connected) {
             setIsLoading(false);
+            return;
+          }
         }
-    }, [checkConnection]); 
+        
+        // Query de teste simples para verificar acesso à tabela
+        const { error: testError } = await supabase
+          .from('usuarios')
+          .select('id, nome')
+          .eq('id', currentAuthUser.id)
+          .single();
+        
+        if (testError) {
+          console.error('Erro na query de teste:', testError);
+          toast({
+            title: "Erro de acesso",
+            description: `Problema ao acessar os dados do usuário: ${testError.message}`,
+            variant: "destructive",
+          });
+        }
+        
+        // Query completa para buscar o perfil do usuário
+        const { data: profileData, error: profileError } = await supabase
+          .from('usuarios')
+          .select('id, nome, email, perfil, ativo, unidade_id, unidade:unidades (nome)')
+          .eq('id', currentAuthUser.id)
+          .single();
+        
+        if (profileError) {
+          console.error('Erro ao buscar perfil do usuário:', profileError);
+          toast({
+            title: "Erro de perfil",
+            description: `Não foi possível carregar seu perfil: ${profileError.message}`,
+            variant: "destructive",
+          });
+          setUserProfile(null);
+          setMappedUser(null);
+        } else if (profileData) {
+          let unidadeNome: string | null = null;
+          if (profileData.unidade) {
+            if (Array.isArray(profileData.unidade)) {
+              if (profileData.unidade.length > 0 && profileData.unidade[0]) {
+                unidadeNome = profileData.unidade[0].nome;
+              }
+            } else {
+              unidadeNome = (profileData.unidade as { nome: string | null }).nome;
+            }
+          }
+          const fetchedProfile: UserProfile = {
+            id: profileData.id,
+            nome: profileData.nome,
+            email: profileData.email,
+            perfil: profileData.perfil as UserRole,
+            ativo: profileData.ativo,
+            unidade_id: profileData.unidade_id,
+            unidade_nome: unidadeNome,
+          };
+          setUserProfile(fetchedProfile);
+          // mappedUser will be updated by the useEffect
+        } else {
+          console.warn(`Nenhum perfil encontrado para o usuário (ID: ${currentAuthUser.id}).`);
+          setUserProfile(null);
+          setMappedUser(null);
+        }
+      } catch (e) {
+        console.error('Erro inesperado ao buscar perfil:', e);
+        toast({
+          title: "Erro de sistema",
+          description: "Ocorreu um erro ao buscar seus dados de perfil.",
+          variant: "destructive",
+        });
+        setUserProfile(null);
+        setMappedUser(null);
+      } finally {
+        setIsLoading(false);
+      }
+    }, [connectionStatus, checkConnection]); 
 
     useEffect(() => {
-        if (user) {
-            setIsLoading(true); 
-            fetchProfileAndSetState(user, 'PROFILE_FETCH_EFFECT');
-        }
+      if (user) {
+        setIsLoading(true); 
+        fetchProfileAndSetState(user, 'PROFILE_FETCH_EFFECT');
+      }
     }, [user, fetchProfileAndSetState]); 
 
     const login = async (credentials: Credentials) => {
-        setIsLoading(true); 
-        
-        // Check connection before attempting login
-        const connectionCheck = await checkConnection();
-        if (!connectionCheck.connected) {
-          setIsLoading(false);
-          return { 
-            user: null, 
-            session: null, 
-            error: new Error(`Problema de conexão ao Supabase: ${connectionCheck.error || 'Erro desconhecido'}`) 
-          };
+      setIsLoading(true); 
+      
+      // Check connection before attempting login
+      const connectionCheck = await checkConnection();
+      if (!connectionCheck.connected) {
+        setIsLoading(false);
+        return { 
+          user: null, 
+          session: null, 
+          error: new Error(`Problema de conexão ao Supabase: ${connectionCheck.error || 'Erro desconhecido'}`) 
+        };
+      }
+      
+      try {
+        const { data, error } = await supabase.auth.signInWithPassword(credentials);
+        if (error) {
+          console.error('Erro de login:', error);
+          toast({ 
+            title: "Erro de Login", 
+            description: error.message, 
+            variant: "destructive" 
+          });
+          setIsLoading(false); 
+          return { user: null, session: null, error };
         }
         
-        try {
-            const { data, error } = await supabase.auth.signInWithPassword(credentials);
-            if (error) {
-                console.error('Erro de login:', error);
-                toast({ 
-                  title: "Erro de Login", 
-                  description: error.message, 
-                  variant: "destructive" 
-                });
-                setIsLoading(false); 
-                return { user: null, session: null, error };
-            }
-            return { user: data.user, session: data.session, error: null };
-        } catch (e: unknown) { 
-            const error = e instanceof Error ? e : new Error('Erro desconhecido durante o login');
-            console.error('[AuthProvider login] Exceção:', error);
-            toast({ 
-              title: "Erro Crítico", 
-              description: error.message, 
-              variant: "destructive" 
-            });
-            setIsLoading(false);
-            return { user: null, session: null, error };
+        if (data?.user) {
+          await fetchProfileAndSetState(data.user, 'LOGIN');
         }
+        
+        return { 
+          user: data?.user ?? null, 
+          session: data?.session ?? null, 
+          error: null 
+        };
+      } catch (e: unknown) { 
+        const error = e instanceof Error ? e : new Error('Erro desconhecido durante o login');
+        console.error('[AuthProvider login] Exceção:', error);
+        toast({ 
+          title: "Erro Crítico", 
+          description: error.message, 
+          variant: "destructive" 
+        });
+        setIsLoading(false);
+        return { user: null, session: null, error };
+      }
     };
 
     const logout = async () => {
+      try {
+        setIsLoading(true);
         const { error } = await supabase.auth.signOut();
         if (error) {
-            console.error('Erro ao sair:', error);
-            toast({ 
-              title: "Erro ao Sair", 
-              description: error.message, 
-              variant: "destructive" 
-            });
+          console.error('Erro ao fazer logout:', error);
+          toast({
+            title: "Erro",
+            description: "Não foi possível fazer logout",
+            variant: "destructive"
+          });
+        } else {
+          setUser(null);
+          setSession(null);
+          setUserProfile(null);
+          setMappedUser(null);
+          toast({
+            title: "Sucesso",
+            description: "Logout realizado com sucesso",
+            variant: "default"
+          });
         }
+      } catch (error) {
+        console.error('Erro inesperado ao fazer logout:', error);
+        toast({
+          title: "Erro",
+          description: "Ocorreu um erro ao fazer logout",
+          variant: "destructive"
+        });
+      } finally {
         setIsLoading(false);
+      }
     };
 
     const value: AuthContextType = {
-        user,
-        session,
-        userProfile,
-        mappedUser,
-        isLoading,
-        login,
-        logout,
-        isAuthenticated: !!user && !!userProfile,
-        connectionStatus,
-        checkConnection
+      user,
+      session,
+      userProfile,
+      mappedUser,
+      isLoading,
+      login,
+      logout,
+      isAuthenticated: !!user && !!userProfile,
+      connectionStatus,
+      checkConnection
     };
 
     return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
@@ -307,3 +359,5 @@ export const useAuth = () => {
     }
     return context;
 };
+
+export default AuthProvider;
