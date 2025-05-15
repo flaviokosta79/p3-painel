@@ -1,3 +1,4 @@
+
 import type React from 'react';
 import { createContext, useState, useEffect, useContext, useCallback } from 'react';
 import type { ReactNode } from 'react';
@@ -8,10 +9,13 @@ import { toast } from '@/hooks/use-toast';
 // Define the User type for export to other components
 export interface User {
   id: string;
-  name?: string;
+  name: string;
   email: string;
-  unit?: string;
-  isAdmin?: boolean;
+  unit: {
+    id: string;
+    name: string;
+  };
+  isAdmin: boolean;
 }
 
 export enum UserRole {
@@ -43,7 +47,7 @@ interface AuthContextType {
   logout: () => Promise<void>;
   isAuthenticated: boolean;
   connectionStatus: { connected: boolean; lastChecked: Date | null; error?: string };
-  checkConnection: () => Promise<void>;
+  checkConnection: () => Promise<{ connected: boolean; error?: string }>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -73,6 +77,8 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
           variant: "destructive",
         });
       }
+      
+      return result;
     };
 
     useEffect(() => {

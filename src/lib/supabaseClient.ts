@@ -5,19 +5,19 @@ import { createClient } from '@supabase/supabase-js';
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
 
-// Default URLs for development (these won't work for actual data access but will prevent crashes)
-const defaultUrl = 'https://placeholder-project.supabase.co';
-const defaultKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBsYWNlaG9sZGVyIiwicm9sZSI6ImFub24iLCJpYXQiOjE2MTYxNjY1NTIsImV4cCI6MTkzMTc0MjU1Mn0.placeholder';
-
 // Check if environment variables are properly configured
-if (!supabaseUrl || !supabaseAnonKey) {
-  console.error("Supabase URL or Anonymous Key is missing from environment variables. Using placeholders for development.");
+if (!supabaseUrl || !supabaseUrl.includes('supabase.co')) {
+  console.error("Supabase URL is missing or invalid. Please set VITE_SUPABASE_URL environment variable.");
+}
+
+if (!supabaseAnonKey || supabaseAnonKey.length < 20) {
+  console.error("Supabase Anonymous Key is missing or invalid. Please set VITE_SUPABASE_ANON_KEY environment variable.");
 }
 
 // Create and export the Supabase client
 export const supabase = createClient(
-  supabaseUrl || defaultUrl, 
-  supabaseAnonKey || defaultKey,
+  supabaseUrl, 
+  supabaseAnonKey,
   {
     auth: {
       persistSession: true,

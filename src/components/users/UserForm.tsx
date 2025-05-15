@@ -1,3 +1,4 @@
+
 import { useState, FormEvent } from "react";
 import { useNavigate } from "react-router-dom";
 import { useUsers, UserData } from "@/hooks/useUsers";
@@ -29,7 +30,7 @@ export function UserForm({ user, isEditing = false }: UserFormProps) {
   const [name, setName] = useState(user?.nome || "");
   const [email, setEmail] = useState(user?.email || "");
   const [password, setPassword] = useState("");
-  const [role, setRole] = useState<UserRole>(user?.perfil || "usuario");
+  const [role, setRole] = useState<UserRole>(user?.perfil || UserRole.USUARIO);
   const [unitId, setUnitId] = useState(user?.unidadeId || "");
   const [isLoading, setIsLoading] = useState(false);
   const [useGeneratedPassword, setUseGeneratedPassword] = useState(true);
@@ -201,8 +202,8 @@ export function UserForm({ user, isEditing = false }: UserFormProps) {
                   <SelectValue placeholder="Selecione o perfil" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="admin">Administrador</SelectItem>
-                  <SelectItem value="usuario">Usuário</SelectItem>
+                  <SelectItem value={UserRole.ADMIN}>Administrador</SelectItem>
+                  <SelectItem value={UserRole.USUARIO}>Usuário</SelectItem>
                 </SelectContent>
               </Select>
             </div>

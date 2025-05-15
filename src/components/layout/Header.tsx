@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { SidebarTrigger } from "@/components/ui/sidebar";
@@ -14,7 +15,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { useNavigate } from "react-router-dom";
 
 export function Header() {
-  const { user, logout } = useAuth();
+  const { userProfile, logout } = useAuth();
   const navigate = useNavigate();
   const [notifications, setNotifications] = useState(2);
   
@@ -33,9 +34,9 @@ export function Header() {
         
         {/* Adicionar saudação e mensagem de boas-vindas */}
         <div className="flex-grow flex flex-col items-start justify-center ml-2 md:ml-4">
-          {user && (
+          {userProfile && (
             <span className="text-sm font-medium text-gray-700">
-              Olá, {user.name || 'Usuário'}
+              Olá, {userProfile.nome || 'Usuário'}
             </span>
           )}
           <span className="text-xs text-gray-500 hidden md:block">

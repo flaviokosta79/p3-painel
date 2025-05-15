@@ -17,7 +17,7 @@ interface DocumentFormValues {
 }
 
 export function useDocumentForm(initialData?: Partial<Document>) {
-  const { user } = useAuth();
+  const { userProfile } = useAuth();
   const { addDocument, updateDocument } = useDocuments();
   const { getUnits } = useUsers();
   const navigate = useNavigate();
@@ -27,7 +27,7 @@ export function useDocumentForm(initialData?: Partial<Document>) {
   const defaultValues: Partial<DocumentFormValues> = {
     title: initialData?.title || "",
     description: initialData?.description || "",
-    unitId: initialData?.unitId || (user?.role === 'admin' ? (user?.unit.id || "") : "cpa-admin"),
+    unitId: initialData?.unitId || (userProfile?.perfil === 'admin' ? (userProfile?.unidade_id || "") : "cpa-admin"),
     documentDate: initialData?.documentDate ? new Date(initialData.documentDate) : undefined,
     deadline: initialData?.deadline ? new Date(initialData.deadline) : undefined,
   };
