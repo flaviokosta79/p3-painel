@@ -6,24 +6,14 @@ import type { Session, User as AuthUser } from '@supabase/supabase-js';
 import { supabase, checkSupabaseConnection } from '../lib/supabaseClient';
 import { toast } from '@/hooks/use-toast';
 
-// Define the User type for export to other components
-export interface User {
-  id: string;
-  name: string;
-  email: string;
-  unit: {
-    id: string;
-    name: string;
-  };
-  isAdmin: boolean;
-}
-
+// Define the UserRole enum
 export enum UserRole {
-    ADMIN = 'admin',
-    USUARIO = 'usuario',
+  ADMIN = 'admin',
+  USUARIO = 'usuario',
 }
 
-interface UserProfile {
+// Define the UserProfile type for internal use
+export interface UserProfile {
   id: string;
   nome: string;
   email: string;
@@ -31,6 +21,32 @@ interface UserProfile {
   ativo: boolean;
   unidade_id: string | null;
   unidade_nome: string | null;
+}
+
+// Define the User type for export to other components
+export interface User {
+  id: string;
+  name: string; // This will be mapped from nome in UserProfile
+  email: string;
+  unit: {
+    id: string | null;
+    name: string | null;
+  };
+  isAdmin: boolean;
+}
+
+// Convert UserProfile to User type for compatibility with other components
+function mapProfileToUser(profile: UserProfile): User {
+  return {
+    id: profile.id,
+    name: profile.nome,
+    email: profile.email,
+    unit: {
+      id: profile.unidade_id,
+      name: profile.unidade_nome
+    },
+    isAdmin: profile.perfil === UserRole.ADMIN
+  };
 }
 
 interface Credentials {
@@ -42,6 +58,7 @@ interface AuthContextType {
   user: AuthUser | null;
   session: Session | null;
   userProfile: UserProfile | null;
+  mappedUser: User | null; // Added for compatibility with existing components
   isLoading: boolean;
   login: (credentials: Credentials) => Promise<{ user: AuthUser | null; session: Session | null; error: Error | null; }>;
   logout: () => Promise<void>;
@@ -56,6 +73,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     const [user, setUser] = useState<AuthUser | null>(null);
     const [session, setSession] = useState<Session | null>(null);
     const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
+    const [mappedUser, setMappedUser] = useState<User | null>(null);
     const [isLoading, setIsLoading] = useState(true);
     const [connectionStatus, setConnectionStatus] = useState<{ connected: boolean; lastChecked: Date | null; error?: string }>({
       connected: false,
@@ -91,7 +109,8 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
           setUser(currentSession?.user ?? null);
           setSession(currentSession ?? null);
           if (!currentSession) {
-              setUserProfile(null); 
+              setUserProfile(null);
+              setMappedUser(null); 
               setIsLoading(false); 
           }
       });
@@ -113,6 +132,15 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
           authListener.subscription.unsubscribe();
       };
     }, []); 
+
+    // Update mappedUser whenever userProfile changes
+    useEffect(() => {
+      if (userProfile) {
+        setMappedUser(mapProfileToUser(userProfile));
+      } else {
+        setMappedUser(null);
+      }
+    }, [userProfile]);
 
     const fetchProfileAndSetState = useCallback(async (currentAuthUser: AuthUser, eventName: string) => {
         try {
@@ -154,6 +182,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
                   variant: "destructive",
                 });
                 setUserProfile(null);
+                setMappedUser(null);
             } else if (profileData) {
                 let unidadeNome: string | null = null;
                 if (profileData.unidade) {
@@ -175,9 +204,11 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
                     unidade_nome: unidadeNome,
                 };
                 setUserProfile(fetchedProfile);
+                // mappedUser will be updated by the useEffect
             } else {
                 console.warn(`Nenhum perfil encontrado para o usuário (ID: ${currentAuthUser.id}).`);
                 setUserProfile(null);
+                setMappedUser(null);
             }
         } catch (e) {
             console.error('Erro inesperado ao buscar perfil:', e);
@@ -187,6 +218,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
               variant: "destructive",
             });
             setUserProfile(null);
+            setMappedUser(null);
         } finally {
             setIsLoading(false);
         }
@@ -256,6 +288,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         user,
         session,
         userProfile,
+        mappedUser,
         isLoading,
         login,
         logout,
