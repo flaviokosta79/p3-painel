@@ -2,7 +2,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import { createBrowserRouter, RouterProvider } from "react-router-dom";
 import { AuthProvider, UserRole } from "@/hooks/useAuth";
 import { DocumentsProvider } from "@/hooks/useDocuments";
 import { UsersProvider } from "@/hooks/useUsers";
@@ -28,6 +28,118 @@ import { UserDailyMissions } from "./pages/UserDailyMissions";
 
 const queryClient = new QueryClient();
 
+const router = createBrowserRouter([
+  {
+    path: "/login",
+    element: <Login />
+  },
+  {
+    path: "/",
+    element: (
+      <ProtectedRoute>
+        <Index />
+      </ProtectedRoute>
+    )
+  },
+  {
+    path: "/documentos/upload",
+    element: (
+      <ProtectedRoute>
+        <DocumentUpload />
+      </ProtectedRoute>
+    )
+  },
+  {
+    path: "/documentos/lista",
+    element: (
+      <ProtectedRoute>
+        <DocumentsList />
+      </ProtectedRoute>
+    )
+  },
+  {
+    path: "/documentos/detalhes/:id",
+    element: (
+      <ProtectedRoute>
+        <DocumentDetail />
+      </ProtectedRoute>
+    )
+  },
+  {
+    path: "/documentos/editar/:id",
+    element: (
+      <ProtectedRoute>
+        <DocumentEdit />
+      </ProtectedRoute>
+    )
+  },
+  {
+    path: "/admin/documentos",
+    element: (
+      <ProtectedRoute requiredRole={UserRole.ADMIN}>
+        <AdminDocumentsList />
+      </ProtectedRoute>
+    )
+  },
+  {
+    path: "/admin/usuarios",
+    element: (
+      <ProtectedRoute requiredRole={UserRole.ADMIN}>
+        <AdminUsersList />
+      </ProtectedRoute>
+    )
+  },
+  {
+    path: "/admin/usuarios/novo",
+    element: (
+      <ProtectedRoute requiredRole={UserRole.ADMIN}>
+        <AdminNewUser />
+      </ProtectedRoute>
+    )
+  },
+  {
+    path: "/admin/usuarios/editar/:id",
+    element: (
+      <ProtectedRoute requiredRole={UserRole.ADMIN}>
+        <AdminEditUser />
+      </ProtectedRoute>
+    )
+  },
+  {
+    path: "/exemplo",
+    element: (
+      <ProtectedRoute>
+        <PaginaExemplo />
+      </ProtectedRoute>
+    )
+  },
+  {
+    path: "/admin/missoes",
+    element: (
+      <ProtectedRoute requiredRole={UserRole.ADMIN}>
+        <AdminDailyMissions />
+      </ProtectedRoute>
+    )
+  },
+  {
+    path: "/missoes",
+    element: (
+      <ProtectedRoute>
+        <UserDailyMissions />
+      </ProtectedRoute>
+    )
+  },
+  {
+    path: "*",
+    element: <NotFound />
+  }
+], {
+  future: {
+    v7_startTransition: true,
+    v7_relativeSplatPath: true
+  }
+});
+
 const App = () => (
   <QueryClientProvider client={queryClient}>
     <AuthProvider>
@@ -38,117 +150,7 @@ const App = () => (
               <TooltipProvider>
                 <Toaster />
                 <Sonner />
-                <BrowserRouter>
-                  <Routes>
-                    {/* Rota pública */}
-                    <Route path="/login" element={<Login />} />
-                    
-                    {/* Rotas protegidas para todos os usuários */}
-                    <Route
-                      path="/"
-                      element={
-                        <ProtectedRoute>
-                          <Index />
-                        </ProtectedRoute>
-                      }
-                    />
-                    <Route
-                      path="/documents/upload"
-                      element={
-                        <ProtectedRoute>
-                          <DocumentUpload />
-                        </ProtectedRoute>
-                      }
-                    />
-                    <Route
-                      path="/documents"
-                      element={
-                        <ProtectedRoute>
-                          <DocumentsList />
-                        </ProtectedRoute>
-                      }
-                    />
-                    <Route
-                      path="/documents/:id"
-                      element={
-                        <ProtectedRoute>
-                          <DocumentDetail />
-                        </ProtectedRoute>
-                      }
-                    />
-                    <Route
-                      path="/documents/edit/:id"
-                      element={
-                        <ProtectedRoute>
-                          <DocumentEdit />
-                        </ProtectedRoute>
-                      }
-                    />
-                    {/* Nova rota de exemplo */}
-                    <Route
-                      path="/exemplo"
-                      element={
-                        <ProtectedRoute>
-                          <PaginaExemplo />
-                        </ProtectedRoute>
-                      }
-                    />
-                    
-                    {/* Rotas protegidas apenas para administradores */}
-                    <Route
-                      path="/admin/documents"
-                      element={
-                        <ProtectedRoute requiredRole={UserRole.ADMIN}>
-                          <AdminDocumentsList />
-                        </ProtectedRoute>
-                      }
-                    />
-                    <Route
-                      path="/admin/users"
-                      element={
-                        <ProtectedRoute requiredRole={UserRole.ADMIN}>
-                          <AdminUsersList />
-                        </ProtectedRoute>
-                      }
-                    />
-                    <Route
-                      path="/admin/users/new"
-                      element={
-                        <ProtectedRoute requiredRole={UserRole.ADMIN}>
-                          <AdminNewUser />
-                        </ProtectedRoute>
-                      }
-                    />
-                    <Route
-                      path="/admin/users/edit/:id"
-                      element={
-                        <ProtectedRoute requiredRole={UserRole.ADMIN}>
-                          <AdminEditUser />
-                        </ProtectedRoute>
-                      }
-                    />
-                    <Route
-                      path="/admin/missions"
-                      element={
-                        <ProtectedRoute requiredRole={UserRole.ADMIN}>
-                          <AdminDailyMissions />
-                        </ProtectedRoute>
-                      }
-                    />
-                    <Route
-                      path="/daily-missions"
-                      element={
-                        <ProtectedRoute>
-                          <UserDailyMissions />
-                        </ProtectedRoute>
-                      }
-                    />
-                    
-                    {/* Rota de fallback */}
-                    <Route path="/404" element={<NotFound />} />
-                    <Route path="*" element={<Navigate to="/404" replace />} />
-                  </Routes>
-                </BrowserRouter>
+                <RouterProvider router={router} />
               </TooltipProvider>
             </MissionsProvider>
           </DocumentRequirementsProvider>
