@@ -4,7 +4,7 @@ import { useEffect } from "react";
 import { Navigate } from "react-router-dom";
 import { useAuth, UserRole } from "@/hooks/useAuth";
 import { toast } from "@/hooks/use-toast";
-import { Loader2, WifiOff } from "lucide-react"; // Importamos o ícone de carregamento
+import { Loader2, WifiOff } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 interface ProtectedRouteProps {
@@ -15,7 +15,7 @@ interface ProtectedRouteProps {
 export function ProtectedRoute({ children, requiredRole }: ProtectedRouteProps) {
   const { userProfile, isAuthenticated, isLoading, connectionStatus, checkConnection } = useAuth();
   
-  // Efeito para o toast de não autenticado
+  // Effect for not authenticated toast
   useEffect(() => {
     if (!isLoading && !isAuthenticated) {
       toast({
@@ -26,7 +26,7 @@ export function ProtectedRoute({ children, requiredRole }: ProtectedRouteProps) 
     }
   }, [isLoading, isAuthenticated]);
 
-  // Efeito para o toast de permissão negada por papel (role)
+  // Effect for role permission denied toast
   useEffect(() => {
     if (!isLoading && isAuthenticated && requiredRole && userProfile?.perfil !== requiredRole) {
       toast({
@@ -37,7 +37,7 @@ export function ProtectedRoute({ children, requiredRole }: ProtectedRouteProps) 
     }
   }, [isLoading, isAuthenticated, requiredRole, userProfile?.perfil]);
 
-  // Mostrar tela de erro se não houver conexão com o Supabase
+  // Show error screen if no connection to Supabase
   if (!connectionStatus.connected && connectionStatus.error) {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center bg-background p-4">
@@ -53,23 +53,23 @@ export function ProtectedRoute({ children, requiredRole }: ProtectedRouteProps) 
           <Button 
             onClick={() => checkConnection()} 
             variant="outline"
+            className="w-full mb-2"
           >
             Tentar novamente
           </Button>
-          <div className="mt-4">
-            <Button 
-              variant="ghost" 
-              onClick={() => window.location.href = "/login"}
-            >
-              Voltar para o login
-            </Button>
-          </div>
+          <Button 
+            variant="ghost" 
+            onClick={() => window.location.href = "/login"}
+            className="w-full"
+          >
+            Voltar para o login
+          </Button>
         </div>
       </div>
     );
   }
 
-  // Mostrar um loader enquanto verifica a autenticação
+  // Show a loader while checking authentication
   if (isLoading) {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center">
@@ -79,12 +79,12 @@ export function ProtectedRoute({ children, requiredRole }: ProtectedRouteProps) 
     );
   }
   
-  // Verificar se o usuário está autenticado
+  // Check if user is authenticated
   if (!isAuthenticated) {
     return <Navigate to="/login" replace />;
   }
   
-  // Verificar se o usuário tem o papel necessário
+  // Check if user has required role
   if (requiredRole && userProfile?.perfil !== requiredRole) {
     return <Navigate to="/" replace />;
   }

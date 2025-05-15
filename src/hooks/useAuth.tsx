@@ -1,10 +1,18 @@
-
 import type React from 'react';
 import { createContext, useState, useEffect, useContext, useCallback } from 'react';
 import type { ReactNode } from 'react';
 import type { Session, User as AuthUser } from '@supabase/supabase-js';
 import { supabase, checkSupabaseConnection } from '../lib/supabaseClient';
 import { toast } from '@/hooks/use-toast';
+
+// Define the User type for export to other components
+export interface User {
+  id: string;
+  name?: string;
+  email: string;
+  unit?: string;
+  isAdmin?: boolean;
+}
 
 export enum UserRole {
     ADMIN = 'admin',
@@ -65,8 +73,6 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
           variant: "destructive",
         });
       }
-      
-      return result;
     };
 
     useEffect(() => {
