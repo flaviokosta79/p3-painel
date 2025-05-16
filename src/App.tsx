@@ -25,6 +25,7 @@ import NotFound from "./pages/NotFound";
 import PaginaExemplo from "./pages/PaginaExemplo";
 import AdminDailyMissions from "./pages/AdminDailyMissions";
 import { UserDailyMissions } from "./pages/UserDailyMissions";
+import AdminConfiguracoes from "./pages/AdminConfiguracoes";
 
 const queryClient = new QueryClient();
 
@@ -126,6 +127,14 @@ const router = createBrowserRouter([
     element: (
       <ProtectedRoute>
         <UserDailyMissions />
+      </ProtectedRoute>
+    )
+  },
+  {
+    path: "/admin/configuracoes",
+    element: (
+      <ProtectedRoute requiredRole={UserRole.ADMIN}>
+        <AdminConfiguracoes />
       </ProtectedRoute>
     )
   },

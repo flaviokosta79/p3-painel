@@ -8,11 +8,11 @@ import { File, FileCheck, FilePenLine, FileClock, Upload, Users } from "lucide-r
 import { Link, useNavigate } from "react-router-dom";
 
 const Index = () => {
-  const { user } = useAuth();
+  const { mappedUser: user } = useAuth();
   const { documents, loading } = useDocuments();
   const navigate = useNavigate();
   
-  const isAdmin = user?.role === "admin";
+  const isAdmin = user?.isAdmin;
   
   // Estatísticas para o dashboard
   const getStats = () => {
@@ -61,34 +61,34 @@ const Index = () => {
       <div className="space-y-6">
         <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-3 gap-4">
           <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0">
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 p-3">
               <CardTitle className="text-xs font-medium">
                 Total de Documentos
               </CardTitle>
               <File className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent className="py-1">
-              <div className="text-2xl font-bold">{stats.total}</div>
+              <div className="text-xl font-bold">{stats.total}</div>
             </CardContent>
           </Card>
           
           <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0">
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 p-3">
               <CardTitle className="text-xs font-medium">Pendentes</CardTitle>
               <FileClock className="h-4 w-4 text-yellow-500" />
             </CardHeader>
             <CardContent className="py-1">
-              <div className="text-2xl font-bold">{stats.pending}</div>
+              <div className="text-xl font-bold">{stats.pending}</div>
             </CardContent>
           </Card>
           
           <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0">
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 p-3">
               <CardTitle className="text-xs font-medium">Concluídos</CardTitle>
               <FileCheck className="h-4 w-4 text-green-500" />
             </CardHeader>
             <CardContent className="py-1">
-              <div className="text-2xl font-bold">
+              <div className="text-xl font-bold">
                 {stats.approved + stats.completed}
               </div>
             </CardContent>
@@ -128,50 +128,6 @@ const Index = () => {
                 </p>
               </Card>
             )}
-          </div>
-
-          <div className="space-y-4">
-            <h2 className="text-xl font-semibold">Ações Rápidas</h2>
-            <div className="grid grid-cols-1 gap-4">
-              <Card className="transition-colors hover:bg-muted/50">
-                <Link to="/documents/new" className="block p-3">
-                  <div className="flex items-center space-x-4">
-                    <div className="bg-primary/10 p-2 rounded-full">
-                      <Upload className="h-6 w-6 text-primary" />
-                    </div>
-                    <div>
-                      <CardTitle className="text-sm">Enviar Documento</CardTitle>
-                    </div>
-                  </div>
-                </Link>
-              </Card>
-              <Card className="transition-colors hover:bg-muted/50">
-                <Link to="/documents" className="block p-3">
-                  <div className="flex items-center space-x-4">
-                    <div className="bg-primary/10 p-2 rounded-full">
-                      <File className="h-6 w-6 text-primary" />
-                    </div>
-                    <div>
-                      <CardTitle className="text-sm">Meus Documentos</CardTitle>
-                    </div>
-                  </div>
-                </Link>
-              </Card>
-              {isAdmin && (
-                <Card className="transition-colors hover:bg-muted/50">
-                  <Link to="/admin/users" className="block p-3">
-                    <div className="flex items-center space-x-4">
-                      <div className="bg-primary/10 p-2 rounded-full">
-                        <Users className="h-6 w-6 text-primary" />
-                      </div>
-                      <div>
-                        <CardTitle className="text-sm">Usuários</CardTitle>
-                      </div>
-                    </div>
-                  </Link>
-                </Card>
-              )}
-            </div>
           </div>
         </div>
       </div>

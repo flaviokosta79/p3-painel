@@ -28,7 +28,7 @@ import { Plus, Search } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 
 const DocumentsList = () => {
-  const { user } = useAuth();
+  const { mappedUser: user } = useAuth();
   const { documents, loading } = useDocuments();
   const navigate = useNavigate();
   
@@ -62,7 +62,7 @@ const DocumentsList = () => {
   
   // Filtrar documentos por usuário atual
   const userDocuments = documents.filter(
-    (doc) => doc.submittedBy.id === user?.id
+    (doc) => doc.submittedBy && typeof doc.submittedBy.id === 'string' && user && doc.submittedBy.id === user.id
   );
   
   // Aplicar filtros

@@ -45,7 +45,7 @@ const getFormattedDateForDayOfWeek = (dayName: Mission['dayOfWeek']): string => 
 };
 
 export function UserDailyMissions() {
-  const { user } = useAuth();
+  const { mappedUser: user } = useAuth();
   const { missions, loading: missionsLoading, updateUnitMissionStatus, setUnitMissionFile, clearUnitMissionFile } = useMissions(); 
   const [userMissions, setUserMissions] = useState<Mission[]>([]);
   // const [userUnitProgressMap, setUserUnitProgressMap] = useState<Record<string, UnitMissionProgress | undefined>>({}); // Não é mais necessário

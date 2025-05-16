@@ -1,4 +1,3 @@
-
 import { MainLayout } from "@/components/layout/MainLayout";
 import { DocumentCard } from "@/components/documents/DocumentCard";
 import { useAuth } from "@/hooks/useAuth";
@@ -9,12 +8,14 @@ import { useNavigate } from "react-router-dom";
 import { ArrowRight, FilePlus2 } from "lucide-react";
 
 const DocumentUpload = () => {
-  const { user } = useAuth();
+  const { mappedUser: user } = useAuth();
   const { documents, loading } = useDocuments();
   const navigate = useNavigate();
 
   // Filtrar documentos do usuário atual
-  const userDocuments = documents.filter((doc) => doc.submittedBy.id === user?.id);
+  const userDocuments = documents.filter(
+    (doc) => doc.submittedBy && typeof doc.submittedBy.id === 'string' && user && doc.submittedBy.id === user.id
+  );
   
   // Ordenar por data de envio (mais recentes primeiro)
   const sortedDocuments = [...userDocuments].sort(

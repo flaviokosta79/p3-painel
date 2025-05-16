@@ -55,7 +55,7 @@ export function AppSidebar() {
               
               <SidebarMenuItem>
                 <SidebarMenuButton asChild>
-                  <NavLink to="/documents/upload" className="w-full">
+                  <NavLink to="/documentos/upload" className="w-full">
                     <File className="h-5 w-5" />
                     <span>Enviar Documento</span>
                   </NavLink>
@@ -64,7 +64,7 @@ export function AppSidebar() {
               
               <SidebarMenuItem>
                 <SidebarMenuButton asChild>
-                  <NavLink to="/documents" className="w-full">
+                  <NavLink to="/documentos/lista" className="w-full">
                     <Archive className="h-5 w-5" />
                     <span>Meus Documentos</span>
                   </NavLink>
@@ -74,7 +74,7 @@ export function AppSidebar() {
               {/* Item de Menu para Missões Diárias do Usuário */}
               <SidebarMenuItem>
                 <SidebarMenuButton asChild>
-                  <NavLink to="/daily-missions" className="w-full">
+                  <NavLink to="/missoes" className="w-full">
                     <LayoutList className="h-5 w-5" /> 
                     <span>Minhas Missões Diárias</span>
                   </NavLink>
@@ -93,7 +93,7 @@ export function AppSidebar() {
                 <SidebarMenu>
                   <SidebarMenuItem>
                     <SidebarMenuButton asChild>
-                      <NavLink to="/admin/missions" className="w-full">
+                      <NavLink to="/admin/missoes" className="w-full">
                         <LayoutList className="h-5 w-5" />
                         <span>Gestão de Missões Diárias</span>
                       </NavLink>
@@ -102,7 +102,7 @@ export function AppSidebar() {
                   
                   <SidebarMenuItem>
                     <SidebarMenuButton asChild>
-                      <NavLink to="/admin/documents" className="w-full">
+                      <NavLink to="/admin/documentos" className="w-full">
                         <FileText className="h-5 w-5" />
                         <span>Gestão de Documentos</span>
                       </NavLink>
@@ -111,7 +111,7 @@ export function AppSidebar() {
                   
                   <SidebarMenuItem>
                     <SidebarMenuButton asChild>
-                      <NavLink to="/admin/users" className="w-full">
+                      <NavLink to="/admin/usuarios" className="w-full">
                         <Users className="h-5 w-5" />
                         <span>Gestão de Usuários</span>
                       </NavLink>
@@ -120,7 +120,7 @@ export function AppSidebar() {
                   
                   <SidebarMenuItem>
                     <SidebarMenuButton asChild>
-                      <NavLink to="/admin/settings" className="w-full">
+                      <NavLink to="/admin/configuracoes" className="w-full">
                         <Settings className="h-5 w-5" />
                         <span>Configurações</span>
                       </NavLink>
