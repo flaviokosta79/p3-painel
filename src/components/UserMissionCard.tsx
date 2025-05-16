@@ -12,11 +12,12 @@ interface UserMissionCardProps {
   currentUser: User; 
   onFileUpload: (missionId: string, file: File) => void; 
   onRemoveFile: (missionId: string) => void; 
+  onMarkAsCompletedWithoutFile: (missionId: string) => void; 
   isAdminView?: boolean; 
 }
 
-export function UserMissionCard({ mission, currentUser, onFileUpload, onRemoveFile, isAdminView = false }: UserMissionCardProps) {
-  const { id: missionId, title, description, dayOfWeek, unitProgress } = mission;
+export function UserMissionCard({ mission, currentUser, onFileUpload, onRemoveFile, onMarkAsCompletedWithoutFile, isAdminView = false }: UserMissionCardProps) {
+  const { id: missionId, title, description, dayOfWeek, unitProgress, requiresFileSubmission } = mission;
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const userIsCurrentlyAdmin = currentUser?.isAdmin || false;
@@ -67,10 +68,21 @@ export function UserMissionCard({ mission, currentUser, onFileUpload, onRemoveFi
   
   let canUpload = false;
   let canChangeOrRemove = false;
+  let canMarkAsCompletedDirectly = false;
 
   if (!disableActionsDueToAdminView && !userIsCurrentlyAdmin) { 
-    canUpload = ['Pendente', 'Atrasada', 'Não Cumprida'].includes(displayedStatus);
-    canChangeOrRemove = isSubmittedByThisUnit && ['Cumprida', 'Pendente', 'Atrasada', 'Não Cumprida'].includes(displayedStatus);
+    if (requiresFileSubmission) {
+      canUpload = ['Pendente', 'Atrasada', 'Não Cumprida'].includes(displayedStatus);
+      canChangeOrRemove = isSubmittedByThisUnit && ['Cumprida', 'Pendente', 'Atrasada', 'Não Cumprida'].includes(displayedStatus);
+    } else {
+      canMarkAsCompletedDirectly = ['Pendente', 'Atrasada', 'Não Cumprida'].includes(displayedStatus) && !isSubmittedByThisUnit;
+      // Se não requer arquivo e já foi submetido (o que não deveria acontecer, mas por segurança)
+      // ou se já está cumprida, não deve mostrar o botão de marcar novamente.
+      // Se já estiver 'Cumprida' (mesmo sem arquivo), não mostrar o botão.
+      if (displayedStatus === 'Cumprida') {
+        canMarkAsCompletedDirectly = false;
+      }
+    }
   }
   
 
@@ -82,18 +94,18 @@ export function UserMissionCard({ mission, currentUser, onFileUpload, onRemoveFi
         'bg-card': !cardShouldBeDisabled,
       }
     )}>
-      <CardHeader className="pb-2 pt-3">
+      <CardHeader className="pb-1 pt-1">
         <div className="flex justify-between items-start">
           <CardTitle className="text-base font-semibold">{title}</CardTitle>
           {isSubmittedByThisUnit && <CheckCircle className="h-5 w-5 text-green-500" />}
         </div>
         {description && (
-          <CardDescription className="text-xs line-clamp-2 mt-1">
+          <CardDescription className="text-xs line-clamp-2">
             {description}
           </CardDescription>
         )}
       </CardHeader>
-      <CardContent className="pb-2 pt-1 space-y-2 text-xs text-muted-foreground flex-grow"> 
+      <CardContent className="py-1 space-y-1 text-xs text-muted-foreground flex-grow"> 
         <div className="flex items-center">
           <Calendar className="h-3 w-3 mr-1.5" /> Dia: {dayOfWeek}
         </div>
@@ -112,7 +124,7 @@ export function UserMissionCard({ mission, currentUser, onFileUpload, onRemoveFi
           {getStatusBadgeElement(displayedStatus)}
         </div>
       </CardContent>
-      <CardFooter className="flex flex-col items-start pt-4">
+      <CardFooter className="flex flex-col items-start pt-2">
         <input 
           type="file"
           ref={fileInputRef}
@@ -120,37 +132,56 @@ export function UserMissionCard({ mission, currentUser, onFileUpload, onRemoveFi
           className="hidden"
           accept=".csv,.xlsx,.pdf,.doc,.docx,.jpg,.jpeg,.png"
         />
-        {isSubmittedByThisUnit ? (
-          <div className="flex w-full items-center space-x-2"> 
+        {requiresFileSubmission ? (
+          isSubmittedByThisUnit ? (
+            <div className="flex w-full items-center space-x-2"> 
+              <Button 
+                onClick={handleButtonClick} 
+                variant="outline"
+                size="sm" 
+                className="flex-grow"
+                disabled={!canChangeOrRemove || disableActionsDueToAdminView} 
+              >
+                <Edit2 className="h-4 w-4 mr-1.5" /> Alterar
+              </Button>
+              <Button 
+                onClick={() => onRemoveFile(missionId)} 
+                variant="ghost" 
+                size="sm" 
+                className="text-red-600 hover:bg-red-100 hover:text-red-700"
+                disabled={!canChangeOrRemove || disableActionsDueToAdminView} 
+              >
+                <Trash2 className="h-4 w-4 mr-1.5" /> Excluir
+              </Button>
+            </div>
+          ) : (
             <Button 
-              onClick={handleButtonClick} 
-              variant="outline"
-              size="sm" 
-              className="flex-grow"
-              disabled={!canChangeOrRemove || disableActionsDueToAdminView} 
+              onClick={handleButtonClick}
+              disabled={!canUpload || disableActionsDueToAdminView} 
+              className={`w-full bg-blue-500 hover:bg-blue-600 text-white`}
+              size="sm"
             >
-              <Edit2 className="h-4 w-4 mr-1.5" /> Alterar
+              <Upload className="h-4 w-4 mr-2" />
+              Enviar Arquivo
             </Button>
-            <Button 
-              onClick={() => onRemoveFile(missionId)} 
-              variant="ghost" 
-              size="sm" 
-              className="text-red-600 hover:bg-red-100 hover:text-red-700"
-              disabled={!canChangeOrRemove || disableActionsDueToAdminView} 
-            >
-              <Trash2 className="h-4 w-4 mr-1.5" /> Excluir
-            </Button>
-          </div>
+          )
         ) : (
-          <Button 
-            onClick={handleButtonClick}
-            disabled={!canUpload || disableActionsDueToAdminView} 
-            className={`w-full bg-blue-500 hover:bg-blue-600 text-white`}
-            size="sm"
-          >
-            <Upload className="h-4 w-4 mr-2" />
-            Enviar Arquivo
-          </Button>
+          canMarkAsCompletedDirectly && !disableActionsDueToAdminView ? (
+            <Button
+              onClick={() => onMarkAsCompletedWithoutFile(missionId)}
+              disabled={disableActionsDueToAdminView} // Já coberto por canMarkAsCompletedDirectly
+              className="w-full bg-green-500 hover:bg-green-600 text-white"
+              size="sm"
+            >
+              <CheckCircle className="h-4 w-4 mr-2" />
+              Marcar como Cumprida
+            </Button>
+          ) : displayedStatus === 'Cumprida' && !requiresFileSubmission ? (
+            <div className="flex items-center text-sm text-green-600">
+              <CheckCircle className="h-4 w-4 mr-1.5" />
+              Missão Cumprida
+            </div>
+          ) : null // Ou alguma outra mensagem se necessário
         )}
       </CardFooter>
     </Card>

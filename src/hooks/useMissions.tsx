@@ -1,5 +1,5 @@
 import { createContext, useContext, useState, useEffect, useCallback, type ReactNode } from 'react';
-import MissionStorage, { type Mission, type MissionStatus, type DayOfWeek, type UnitMissionProgress } from '@/db/MissionStorage'; 
+import MissionStorage, { type Mission, type MissionStatus, type DayOfWeek, type UnitMissionProgress, supabaseRowToMission } from '@/db/MissionStorage'; 
 import { useAuth, type User } from './useAuth';
 import { useUsers } from './useUsers';
 import { v4 as uuidv4 } from 'uuid';
@@ -15,8 +15,8 @@ interface MissionsContextType {
   updateUnitMissionStatus: (missionId: string, unitId: string, newStatus: MissionStatus, updatedByUserId: string) => Promise<boolean>; 
   getMissionById: (missionId: string) => Mission | undefined;
   getMissionsByUnitId: (unitId: string) => Mission[]; 
-  setUnitMissionFile: (missionId: string, unitId: string, file: File, user: User) => Promise<boolean>;
-  clearUnitMissionFile: (missionId: string, unitId: string, user: User) => Promise<boolean>;
+  setUnitMissionFile: (missionId: string, unitId: string, file: File) => Promise<boolean>;
+  clearUnitMissionFile: (missionId: string, unitId: string) => Promise<boolean>;
 }
 
 interface MissionsProviderProps {
@@ -28,7 +28,7 @@ const MissionsContext = createContext<MissionsContextType | undefined>(undefined
 export const MissionsProvider: React.FC<MissionsProviderProps> = ({ children }) => {
   const [missions, setMissions] = useState<Mission[]>([]);
   const [loading, setLoading] = useState(true);
-  const { user: currentUser } = useAuth();
+  const { mappedUser: currentUser, supabase } = useAuth(); 
   const { getUserNameById } = useUsers(); 
 
   useEffect(() => {
@@ -39,7 +39,65 @@ export const MissionsProvider: React.FC<MissionsProviderProps> = ({ children }) 
       setLoading(false);
     };
     loadMissions();
-  }, []);
+
+    if (!supabase) return; 
+
+    const channel = supabase
+      .channel('missoes-realtime')
+      .on<Mission>(
+        'postgres_changes',
+        { event: 'INSERT', schema: 'public', table: 'missoes' },
+        (payload) => {
+          const newMission = supabaseRowToMission(payload.new);
+          setMissions((prevMissions) => {
+            if (prevMissions.find(m => m.id === newMission.id)) {
+              return prevMissions;
+            }
+            const updatedMissions = [...prevMissions, newMission].sort((a, b) => new Date(b.creationDate).getTime() - new Date(a.creationDate).getTime());
+            return updatedMissions;
+          });
+        }
+      )
+      .on<Mission>(
+        'postgres_changes',
+        { event: 'UPDATE', schema: 'public', table: 'missoes' },
+        (payload) => {
+          const updatedMission = supabaseRowToMission(payload.new);
+          setMissions((prevMissions) => {
+            const updatedMissions = prevMissions.map(m => m.id === updatedMission.id ? updatedMission : m).sort((a, b) => new Date(b.creationDate).getTime() - new Date(a.creationDate).getTime());
+            return updatedMissions;
+          });
+        }
+      )
+      .on<Mission>(
+        'postgres_changes',
+        { event: 'DELETE', schema: 'public', table: 'missoes' },
+        (payload) => {
+          // @ts-ignore 
+          const deletedMissionId = payload.old.id;
+          if (!deletedMissionId) {
+            console.warn(">>> Realtime DELETE: payload.old.id is missing. Check REPLICA IDENTITY for 'missoes' table. It should be FULL.", payload);
+            return;
+          }
+          setMissions((prevMissions) => {
+            const updatedMissions = prevMissions.filter(m => m.id !== deletedMissionId).sort((a, b) => new Date(b.creationDate).getTime() - new Date(a.creationDate).getTime());
+            return updatedMissions;
+          });
+        }
+      )
+      .subscribe((status, err) => {
+        if (status === 'SUBSCRIBED') {
+        } else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT' || status === 'CLOSED'){
+          console.error('Erro ou fechamento do canal Realtime de missões:', err, status);
+        }
+      });
+
+    return () => {
+      if (channel) {
+        supabase.removeChannel(channel);
+      }
+    };
+  }, [supabase]); 
 
   const addMission = useCallback(async (missionData: Omit<Mission, 'id' | 'unitProgress' | 'creationDate' | 'createdBy' | 'createdByName' | 'updatedAt' | 'lastUpdatedById' | 'lastUpdatedByName'> & { targetUnitIds: string[] }): Promise<boolean> => {
     if (!currentUser) {
@@ -67,58 +125,52 @@ export const MissionsProvider: React.FC<MissionsProviderProps> = ({ children }) 
       lastUpdatedById: currentUser.id,
       lastUpdatedByName: currentUserName,
     };
-    const success = await MissionStorage.saveMission(newMission);
-    if (success) {
-      setMissions(prevMissions => [...prevMissions, newMission]);
+    const success = await MissionStorage.saveMission(newMission, currentUser);
+    if (!success) {
+      console.error('Falha ao salvar nova missão no MissionStorage.');
     }
     return success;
   }, [currentUser, getUserNameById]);
 
   const deleteMission = useCallback(async (missionId: string): Promise<boolean> => {
     const success = await MissionStorage.deleteMission(missionId);
-    if (success) {
-      setMissions(prevMissions => prevMissions.filter(m => m.id !== missionId));
-    }
     return success;
   }, []);
 
-  const updateMission = useCallback(async (missionUpdateData: Partial<Omit<Mission, 'unitProgress' | 'id'>> & Pick<Mission, 'id' | 'targetUnitIds'>): Promise<boolean> => {
+  const updateMission = useCallback(async (missionData: Partial<Omit<Mission, 'unitProgress' | 'id'>> & Pick<Mission, 'id' | 'targetUnitIds'>): Promise<boolean> => {
     if (!currentUser) {
       console.error("Usuário não autenticado para atualizar missão.");
       return false;
     }
-    const missionToUpdate = missions.find(m => m.id === missionUpdateData.id);
-    if (!missionToUpdate) return false;
+    const missionToUpdate = missions.find(m => m.id === missionData.id); 
+    if (!missionToUpdate) {
+        console.warn("Tentativa de atualizar missão não encontrada no estado local, pode já ter sido removida ou é um ID inválido.");
+        return false;
+    }
 
     const currentUserName = currentUser.name || getUserNameById(currentUser.id) || 'Usuário Desconhecido';
 
     const updatedMission: Mission = {
       ...missionToUpdate, 
-      ...missionUpdateData, 
+      ...missionData, 
       lastUpdatedById: currentUser.id,
       lastUpdatedByName: currentUserName,
       updatedAt: new Date().toISOString(),
     };
 
-    const success = await MissionStorage.saveMission(updatedMission);
-    if (success) {
-      const reloadedMission = await MissionStorage.getMissionById(updatedMission.id);
-      if (reloadedMission) {
-        setMissions(prevMissions => 
-          prevMissions.map(m => m.id === reloadedMission.id ? reloadedMission : m)
-        );
-      } else {
-        setMissions(prevMissions => 
-          prevMissions.map(m => m.id === updatedMission.id ? updatedMission : m)
-        );
-      }
+    const success = await MissionStorage.saveMission(updatedMission, currentUser);
+    if (!success) {
+      console.error('Falha ao ATUALIZAR missão no MissionStorage.');
     }
     return success;
   }, [missions, currentUser, getUserNameById]);
 
   const updateUnitMissionStatus = useCallback(async (missionId: string, unitId: string, newStatus: MissionStatus, updatedByUserId: string): Promise<boolean> => {
-    const mission = missions.find(m => m.id === missionId);
-    if (!mission) return false;
+    const mission = missions.find(m => m.id === missionId); 
+    if (!mission) {
+        console.warn("Tentativa de atualizar status de unidade em missão não encontrada no estado local.");
+        return false;
+    }
 
     const updatedByUserName = getUserNameById(updatedByUserId) || 'Usuário Desconhecido';
     const now = new Date().toISOString();
@@ -144,14 +196,12 @@ export const MissionsProvider: React.FC<MissionsProviderProps> = ({ children }) 
       updatedAt: now,
     };
 
-    const success = await MissionStorage.saveMission(updatedMission);
-    if (success) {
-      setMissions(prevMissions => 
-        prevMissions.map(m => m.id === missionId ? updatedMission : m)
-      );
+    const success = await MissionStorage.saveMission(updatedMission, currentUser);
+    if (!success) {
+      console.error('Falha ao salvar atualização de status da missão no MissionStorage.');
     }
     return success;
-  }, [missions, getUserNameById]);
+  }, [missions, getUserNameById, currentUser]);
 
   const getMissionById = useCallback((missionId: string): Mission | undefined => {
     return missions.find(m => m.id === missionId);
@@ -163,31 +213,34 @@ export const MissionsProvider: React.FC<MissionsProviderProps> = ({ children }) 
     );
   }, [missions]);
 
-  const setUnitMissionFile = useCallback(async (missionId: string, unitId: string, file: File, user: User): Promise<boolean> => {
-    if (!user) {
+  const setUnitMissionFile = useCallback(async (missionId: string, unitId: string, file: File): Promise<boolean> => {
+    if (!currentUser) {
       console.error("Usuário não autenticado para enviar arquivo.");
       return false;
     }
-    const missionToUpdate = missions.find(m => m.id === missionId);
-    if (!missionToUpdate) return false;
+    const missionToUpdate = missions.find(m => m.id === missionId); 
+    if (!missionToUpdate) {
+        console.warn("Tentativa de definir arquivo para missão não encontrada no estado local.");
+        return false;
+    }
 
     const now = new Date().toISOString();
     const updatedUnitProgress = missionToUpdate.unitProgress.map(up => {
       if (up.unitId === unitId) {
         return {
           ...up,
-          status: 'Cumprida' as MissionStatus, // Define como Cumprida ao enviar o arquivo
+          status: 'Cumprida' as MissionStatus, 
           submittedFile: {
             name: file.name,
             type: file.type,
             size: file.size,
-            uploadedById: user.id,
-            uploadedByName: user.name,
+            uploadedById: currentUser.id,
+            uploadedByName: currentUser.name,
             uploadedAt: now,
           },
           submittedAt: now,
-          lastUpdatedById: user.id,
-          lastUpdatedByName: user.name,
+          lastUpdatedById: currentUser.id,
+          lastUpdatedByName: currentUser.name,
           updatedAt: now,
         };
       }
@@ -197,38 +250,38 @@ export const MissionsProvider: React.FC<MissionsProviderProps> = ({ children }) 
     const updatedMission: Mission = {
       ...missionToUpdate,
       unitProgress: updatedUnitProgress,
-      lastUpdatedById: user.id, 
-      lastUpdatedByName: user.name,
-      updatedAt: now,
+      lastUpdatedById: currentUser.id, 
+      lastUpdatedByName: currentUser.name,
+      updatedAt: now, 
     };
 
-    const success = await MissionStorage.saveMission(updatedMission);
-    if (success) {
-      setMissions(prevMissions => 
-        prevMissions.map(m => m.id === missionId ? updatedMission : m)
-      );
+    const success = await MissionStorage.saveMission(updatedMission, currentUser);
+    if (!success) {
+      console.error('Falha ao salvar missão com arquivo no MissionStorage.');
     }
     return success;
-  }, [missions]);
+  }, [missions, currentUser, getUserNameById]); 
 
-  const clearUnitMissionFile = useCallback(async (missionId: string, unitId: string, user: User): Promise<boolean> => {
-    if (!user) {
-      console.error("Usuário não autenticado para remover arquivo.");
+  const clearUnitMissionFile = useCallback(async (missionId: string, unitId: string): Promise<boolean> => {
+    if (!currentUser) {
+      console.error("Usuário não autenticado para limpar arquivo.");
       return false;
     }
-    const missionToUpdate = missions.find(m => m.id === missionId);
-    if (!missionToUpdate) return false;
+    const missionToUpdate = missions.find(m => m.id === missionId); 
+    if (!missionToUpdate) {
+        console.warn("Tentativa de limpar arquivo para missão não encontrada no estado local.");
+        return false;
+    }
 
     const now = new Date().toISOString();
     const updatedUnitProgress = missionToUpdate.unitProgress.map(up => {
       if (up.unitId === unitId) {
         return {
           ...up,
-          status: 'Pendente' as MissionStatus, // Volta para Pendente ao remover o arquivo
+          status: 'Pendente' as MissionStatus, 
           submittedFile: null,
-          submittedAt: undefined, // Limpa data de submissão
-          lastUpdatedById: user.id,
-          lastUpdatedByName: user.name,
+          lastUpdatedById: currentUser.id,
+          lastUpdatedByName: currentUser.name,
           updatedAt: now,
         };
       }
@@ -238,18 +291,17 @@ export const MissionsProvider: React.FC<MissionsProviderProps> = ({ children }) 
     const updatedMission: Mission = {
       ...missionToUpdate,
       unitProgress: updatedUnitProgress,
-      lastUpdatedById: user.id, 
-      lastUpdatedByName: user.name,
-      updatedAt: now,
+      lastUpdatedById: currentUser.id, 
+      lastUpdatedByName: currentUser.name,
+      updatedAt: now, 
     };
-    const success = await MissionStorage.saveMission(updatedMission);
-    if (success) {
-      setMissions(prevMissions => 
-        prevMissions.map(m => m.id === missionId ? updatedMission : m)
-      );
+
+    const success = await MissionStorage.saveMission(updatedMission, currentUser);
+    if (!success) {
+      console.error('Falha ao limpar arquivo da missão no MissionStorage.');
     }
     return success;
-  }, [missions]);
+  }, [missions, currentUser, getUserNameById]); 
 
   return (
     <MissionsContext.Provider value={{
@@ -258,21 +310,21 @@ export const MissionsProvider: React.FC<MissionsProviderProps> = ({ children }) 
       addMission,
       deleteMission,
       updateMission,
-      updateUnitMissionStatus, 
+      updateUnitMissionStatus,
       getMissionById,
       getMissionsByUnitId,
-      setUnitMissionFile,   
-      clearUnitMissionFile   
+      setUnitMissionFile,
+      clearUnitMissionFile,
     }}>
       {children}
     </MissionsContext.Provider>
   );
 };
 
-export const useMissions = () => {
+export const useMissions = (): MissionsContextType => {
   const context = useContext(MissionsContext);
-  if (context === undefined) {
-    throw new Error('useMissions must be used within a MissionsProvider');
+  if (!context) {
+    throw new Error('useMissions deve ser usado dentro de um MissionsProvider');
   }
   return context;
 };

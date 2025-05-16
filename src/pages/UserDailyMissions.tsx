@@ -104,7 +104,7 @@ export function UserDailyMissions() {
   const handleFileUpload = async (missionId: string, file: File) => { // unitId removido dos params, será pego de user.unit.id
     if (user && user.unit) { 
       try {
-        await setUnitMissionFile(missionId, user.unit.id, file, user);
+        await setUnitMissionFile(missionId, user.unit.id, file); // Argumento 'user' removido
         toast({ title: "Sucesso", description: "Arquivo enviado e status atualizado para Cumprida." });
       } catch (error) {
         console.error("Erro ao enviar arquivo para missão:", error);
@@ -116,11 +116,23 @@ export function UserDailyMissions() {
   const handleRemoveFile = async (missionId: string) => { // unitId removido dos params, será pego de user.unit.id
     if (user && user.unit) { 
       try {
-        await clearUnitMissionFile(missionId, user.unit.id, user);
+        await clearUnitMissionFile(missionId, user.unit.id); // Argumento 'user' removido
         toast({ title: "Sucesso", description: "Arquivo removido e status atualizado para Pendente." });
       } catch (error) {
         console.error("Erro ao remover arquivo da missão:", error);
         toast({ title: "Erro", description: "Não foi possível remover o arquivo.", variant: "destructive" });
+      }
+    }
+  };
+
+  const handleMarkAsCompletedWithoutFile = async (missionId: string) => {
+    if (user && user.unit && user.id) {
+      try {
+        await updateUnitMissionStatus(missionId, user.unit.id, 'Cumprida', user.id);
+        toast({ title: "Sucesso", description: "Missão marcada como cumprida." });
+      } catch (error) {
+        console.error("Erro ao marcar missão como cumprida:", error);
+        toast({ title: "Erro", description: "Não foi possível marcar a missão como cumprida.", variant: "destructive" });
       }
     }
   };
@@ -157,7 +169,8 @@ export function UserDailyMissions() {
 
           {daysOfWeekForTabs.map((day) => (
             <TabsContent key={day} value={day}>
-              <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+              {/* Ajustado gap e número de colunas para md, lg, xl */}
+              <div className="grid gap-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
                 {missionsLoading && <p>Carregando missões...</p>}
                 {!missionsLoading && userMissions.filter(m => m.dayOfWeek === day).length === 0 && (
                   <p className="col-span-full text-muted-foreground">
@@ -174,6 +187,7 @@ export function UserDailyMissions() {
                       // unitProgress={userUnitProgressMap[mission.id]} // Removido
                       onFileUpload={handleFileUpload} // Simplificado, unitId será pego de user.unit.id dentro da função
                       onRemoveFile={handleRemoveFile} // Simplificado
+                      onMarkAsCompletedWithoutFile={handleMarkAsCompletedWithoutFile} // Nova prop
                       isAdminView={user?.isAdmin || false} // Correção: usar user.isAdmin
                       currentUser={user} 
                     />

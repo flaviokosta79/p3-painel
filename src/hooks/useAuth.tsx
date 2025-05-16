@@ -1,4 +1,3 @@
-
 import type React from 'react';
 import { createContext, useState, useEffect, useContext, useCallback } from 'react';
 import type { ReactNode } from 'react';
@@ -65,6 +64,7 @@ interface AuthContextType {
   isAuthenticated: boolean;
   connectionStatus: { connected: boolean; lastChecked: Date | null; error?: string };
   checkConnection: (showToast?: boolean) => Promise<{ connected: boolean; error?: string }>;
+  supabase: typeof supabase; // Adicionar supabase ao tipo
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -336,7 +336,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       }
     };
 
-    const value: AuthContextType = {
+    const contextValue: AuthContextType = {
       user,
       session,
       userProfile,
@@ -346,13 +346,14 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       logout,
       isAuthenticated: !!user && !!userProfile,
       connectionStatus,
-      checkConnection
+      checkConnection,
+      supabase, // Adicionar supabase ao valor do provider
     };
 
-    return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
+    return <AuthContext.Provider value={contextValue}>{children}</AuthContext.Provider>;
 };
 
-export const useAuth = () => {
+export const useAuth = (): AuthContextType => {
     const context = useContext(AuthContext);
     if (context === undefined) {
         throw new Error('useAuth deve ser usado dentro de um AuthProvider');

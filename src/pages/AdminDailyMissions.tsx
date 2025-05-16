@@ -65,13 +65,14 @@ import {
 const AdminDailyMissions = () => {
   const { missions, loading: loadingMissions, addMission, deleteMission, updateMission, updateUnitMissionStatus, setUnitMissionFile, clearUnitMissionFile } = useMissions(); 
   const { units: allUnitsFromHook, users, getUnitNameById, loading: loadingUsers } = useUsers(); 
+  const { mappedUser: currentUser, isLoading: authLoading } = useAuth();
   const { toast } = useToast();
-  const { user: currentUser } = useAuth();
 
   const [missionTitle, setMissionTitle] = useState("");
   const [missionDescription, setMissionDescription] = useState("");
   const [targetUnitIds, setTargetUnitIds] = useState<string[]>([]);
   const [dayOfWeek, setDayOfWeek] = useState<DayOfWeek>('Segunda-feira');
+  const [requiresFileSubmission, setRequiresFileSubmission] = useState(true);
 
   const [editingMission, setEditingMission] = useState<Mission | null>(null);
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
@@ -101,6 +102,7 @@ const AdminDailyMissions = () => {
     setMissionDescription("");
     setTargetUnitIds([]);
     setDayOfWeek('Segunda-feira');
+    setRequiresFileSubmission(true);
   };
 
   const handleOpenCreateDialog = (mission: Mission | null = null) => {
@@ -110,6 +112,7 @@ const AdminDailyMissions = () => {
       setMissionDescription(mission.description || "");
       setTargetUnitIds(mission.targetUnitIds);
       setDayOfWeek(mission.dayOfWeek);
+      setRequiresFileSubmission(mission.requiresFileSubmission === undefined ? true : mission.requiresFileSubmission);
     } else {
       resetDialogForm();
     }
@@ -131,6 +134,7 @@ const AdminDailyMissions = () => {
         description: missionDescription,
         targetUnitIds: targetUnitIds,
         dayOfWeek: dayOfWeek,
+        requiresFileSubmission: requiresFileSubmission,
       });
       if (success) {
         toast({ title: "Sucesso", description: "Missão atualizada." });
@@ -143,6 +147,7 @@ const AdminDailyMissions = () => {
         description: missionDescription,
         targetUnitIds: targetUnitIds,
         dayOfWeek: dayOfWeek,
+        requiresFileSubmission: requiresFileSubmission,
       });
       if (success) {
         toast({ title: "Sucesso", description: "Missão criada." });
@@ -191,7 +196,7 @@ const AdminDailyMissions = () => {
       return;
     }
     console.log(`Enviando arquivo ${file.name} para unidade ${unitId} na missão ${missionId}`);
-    const success = await setUnitMissionFile(missionId, unitId, file, currentUser);
+    const success = await setUnitMissionFile(missionId, unitId, file);
     if (success) {
       toast({ title: "Upload Concluído", description: `Arquivo ${file.name} enviado e status atualizado.` });
     } else {
@@ -201,10 +206,19 @@ const AdminDailyMissions = () => {
     if (fileInputRef.current) fileInputRef.current.value = ""; 
   };
 
+  const handleClearFileForUnit = async (missionId: string, unitId: string) => {
+    if (!currentUser) {
+      toast({ title: "Erro de Autenticação", variant: "destructive" });
+      return;
+    }
+    console.log(`Limpando arquivo para unidade ${unitId} na missão ${missionId}`);
+    await clearUnitMissionFile(missionId, unitId);
+  };
+
   const ADMIN_UNIT_ID = 'cpa5'; // ID da unidade a ser excluída da exibição de progresso
 
   // Filtra as unidades para exibição nos formulários, excluindo a unidade admin
-  const unitsForForms = allUnitsFromHook.filter(unit => unit.id !== ADMIN_UNIT_ID);
+  const unitsForForms = allUnitsFromHook.filter(unit => unit.id !== ADMIN_UNIT_ID && unit.name !== "5º CPA");
 
   // Função para renderizar o progresso das unidades com popover
   const renderUnitProgress = (mission: Mission, currentStatusFilter: MissionStatus | "all") => {
@@ -307,12 +321,10 @@ const AdminDailyMissions = () => {
                         className="w-full text-xs mt-1"
                         onClick={async () => {
                             if (!currentUser) return;
-                            const success = await clearUnitMissionFile(mission.id, up.unitId, currentUser);
-                            if(success) toast({title: "Arquivo Removido"});
-                            else toast({title: "Erro ao remover arquivo", variant: "destructive"});
+                            await handleClearFileForUnit(mission.id, up.unitId);
                         }}
                       >
-                        <Trash2 className="mr-1 h-3 w-3" /> Remover Arquivo: {up.submittedFile.name.substring(0,15)}...
+                        <Trash2 className="mr-1 h-3 w-3" /> Limpar Arquivo
                       </Button>
                   )}
                 </DropdownMenuContent>
@@ -383,7 +395,7 @@ const AdminDailyMissions = () => {
     </TableHeader>
   );
 
-  if (loadingMissions || loadingUsers) {
+  if (loadingMissions || loadingUsers || authLoading) {
     return <MainLayout><div className="flex justify-center items-center h-64"><p>Carregando dados...</p></div></MainLayout>;
   }
 
@@ -551,13 +563,32 @@ const AdminDailyMissions = () => {
               </Select>
             </div>
 
+            <div className="items-top flex space-x-2 mb-4">
+              <Checkbox 
+                id="requiresFileSubmission"
+                checked={requiresFileSubmission}
+                onCheckedChange={(checked) => setRequiresFileSubmission(Boolean(checked))}
+              />
+              <div className="grid gap-1.5 leading-none">
+                <label
+                  htmlFor="requiresFileSubmission"
+                  className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+                >
+                  Requer envio de arquivo?
+                </label>
+                <p className="text-xs text-muted-foreground">
+                  Se marcado, o usuário precisará enviar um arquivo para cumprir a missão. Caso contrário, poderá apenas marcar como cumprida.
+                </p>
+              </div>
+            </div>
+
             <div className="grid grid-cols-4 items-start gap-4"> 
               <Label htmlFor="missionTargetUnitIdsGroup" className="text-right pt-1"> 
                 Unidade(s) Alvo*
               </Label>
               <div className="col-span-3">
                 <div className="flex flex-col space-y-2" id="missionTargetUnitIdsGroup">
-                  {unitsForForms.map((unit) => (
+                  {unitsForForms.filter(unit => unit.name !== "5º CPA").map((unit) => (
                     <div key={unit.id} className="flex items-center space-x-2">
                       <Checkbox
                         id={`unit-${unit.id}`}

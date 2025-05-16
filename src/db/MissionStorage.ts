@@ -1,3 +1,4 @@
+import { supabase } from '@/lib/supabaseClient'; // Importar o cliente Supabase
 import type { User } from '@/hooks/useAuth';
 
 export type MissionStatus = 'Pendente' | 'Cumprida' | 'Não Cumprida' | 'Atrasada';
@@ -22,149 +23,166 @@ export interface UnitMissionProgress {
   updatedAt?: string; 
 }
 
+// A interface Mission permanece a mesma, mas seus campos serão mapeados para snake_case no Supabase
 export interface Mission {
-  id: string;
+  id: string; // UUID
   title: string;
   description?: string;
-  targetUnitIds: string[]; 
-  unitProgress: UnitMissionProgress[]; 
+  targetUnitIds: string[]; // Array de UUIDs das unidades
+  unitProgress: UnitMissionProgress[]; // Armazenado como JSONB
   dayOfWeek: DayOfWeek;
   createdBy: User['id'];
   createdByName: User['name'];
-  creationDate: string; 
-  updatedAt?: string; 
+  creationDate: string; // TIMESTAMPTZ
+  updatedAt?: string; // TIMESTAMPTZ
   lastUpdatedById?: string; 
   lastUpdatedByName?: string;
+  requiresFileSubmission: boolean; // Novo campo
 }
 
-interface StoredMission {
-  id: string;
-  content: Mission;
-  lastModified: string;
-}
+// Helper para mapear Mission para o formato da tabela Supabase (snake_case)
+const missionToSupabaseRow = (mission: Mission, lastUpdatedById: User['id'], lastUpdatedByName: User['name']) => ({
+  id: mission.id,
+  title: mission.title,
+  description: mission.description,
+  target_unit_ids: mission.targetUnitIds,
+  unit_progress: mission.unitProgress,
+  day_of_week: mission.dayOfWeek,
+  created_by: mission.createdBy,
+  created_by_name: mission.createdByName,
+  creation_date: mission.creationDate,
+  updated_at: mission.updatedAt,
+  last_updated_by_id: lastUpdatedById,
+  last_updated_by_name: lastUpdatedByName,
+  requires_file_submission: mission.requiresFileSubmission, // Novo campo mapeado
+});
 
-const MISSION_STORAGE_KEY = 'db_missions_v2'; 
-const OLD_MISSION_STORAGE_KEY = 'db_missions';
-
-const migrateOldMissionData = (oldMission: any): Mission => {
-  const newUnitProgress: UnitMissionProgress[] = (oldMission.targetUnitIds || []).map((unitId: string) => ({
-    unitId: unitId,
-    status: oldMission.status || 'Pendente', 
-    submittedFile: oldMission.submittedFile || null,
-    submittedAt: oldMission.status === 'Cumprida' ? oldMission.updatedAt || oldMission.creationDate : undefined,
-    lastUpdatedById: oldMission.lastUpdatedById || oldMission.createdBy,
-    lastUpdatedByName: oldMission.lastUpdatedByName || oldMission.createdByName,
-    updatedAt: oldMission.updatedAt || oldMission.creationDate,
-  }));
-
-  return {
-    id: oldMission.id,
-    title: oldMission.title,
-    description: oldMission.description,
-    targetUnitIds: oldMission.targetUnitIds || [],
-    unitProgress: newUnitProgress,
-    dayOfWeek: oldMission.dayOfWeek,
-    createdBy: oldMission.createdBy,
-    createdByName: oldMission.createdByName,
-    creationDate: oldMission.creationDate,
-    updatedAt: oldMission.updatedAt,
-    lastUpdatedById: oldMission.lastUpdatedById,
-    lastUpdatedByName: oldMission.lastUpdatedByName,
-  };
-};
+// Helper para mapear a linha do Supabase para Mission (camelCase)
+export const supabaseRowToMission = (row: any): Mission => ({
+  id: row.id,
+  title: row.title,
+  description: row.description,
+  targetUnitIds: row.target_unit_ids || [],
+  unitProgress: row.unit_progress || [],
+  dayOfWeek: row.day_of_week,
+  createdBy: row.created_by,
+  createdByName: row.created_by_name,
+  creationDate: row.creation_date,
+  updatedAt: row.updated_at,
+  lastUpdatedById: row.last_updated_by_id,
+  lastUpdatedByName: row.last_updated_by_name,
+  requiresFileSubmission: row.requires_file_submission === undefined ? true : row.requires_file_submission, // Novo campo mapeado, default true se não existir
+});
 
 const MissionStorage = {
-  saveMission: async (mission: Mission): Promise<boolean> => {
+  saveMission: async (mission: Mission, user: User): Promise<boolean> => {
+    const missionRow = missionToSupabaseRow(mission, user.id, user.name);
+
     try {
-      const storedMissions = MissionStorage.getAllStoredMissions();
-      const existingMissionIndex = storedMissions.findIndex(m => m.id === mission.id);
+      // Verifica se a missão já existe para decidir entre insert e update
+      // @ts-ignore PostgrestError pode ter status e statusText
+      const { data: existingMission, error: fetchErrorResponse }: { data: any, error: any } = await supabase
+        .from('missoes')
+        .select('id') // Revertido para 'id'
+        .eq('id', mission.id)
+        .single();
 
-      const currentUnitIdsInProgess = mission.unitProgress.map(up => up.unitId);
-      mission.targetUnitIds.forEach(targetId => {
-        if (!currentUnitIdsInProgess.includes(targetId)) {
-          mission.unitProgress.push({
-            unitId: targetId,
-            status: 'Pendente',
-            updatedAt: new Date().toISOString(),
-          });
-        }
-      });
-      mission.unitProgress = mission.unitProgress.filter(up => mission.targetUnitIds.includes(up.unitId));
+      const isErrorPGRST116 = fetchErrorResponse && fetchErrorResponse.code === 'PGRST116';
 
-      if (existingMissionIndex !== -1) {
-        storedMissions[existingMissionIndex] = {
-          id: mission.id,
-          content: mission,
-          lastModified: new Date().toISOString(),
-        };
-      } else {
-        storedMissions.push({
-          id: mission.id,
-          content: mission,
-          lastModified: new Date().toISOString(),
-        });
+      if (fetchErrorResponse && !isErrorPGRST116) {
+        console.error('>>> MissionStorage: Erro INESPERADO ao verificar missão existente:', fetchErrorResponse);
+      } else if (isErrorPGRST116) {
+        // Silenciosamente trata PGRST116 como 'não encontrado'
       }
 
-      localStorage.setItem(MISSION_STORAGE_KEY, JSON.stringify(storedMissions));
-      console.log(`Missão ${mission.id} salva (v2).`);
+      if (existingMission) { 
+        // Lógica de UPDATE
+        const updatePayload = { ...missionRow };
+        delete updatePayload.id; // Não atualize o ID
+        delete updatePayload.created_by; // Geralmente não se atualiza o criador original
+        delete updatePayload.created_by_name;
+        delete updatePayload.creation_date;
+
+        const { error: updateError } = await supabase
+          .from('missoes')
+          .update(updatePayload)
+          .eq('id', mission.id);
+        if (updateError) {
+          console.error('Erro ao ATUALIZAR missão no Supabase:', updateError);
+          return false;
+        }
+        console.log(`Missão ${mission.id} ATUALIZADA no Supabase.`);
+      } else {
+        // Lógica de INSERT
+        const { error: insertError } = await supabase
+          .from('missoes')
+          .insert(missionRow);
+        if (insertError) {
+          console.error('Erro ao inserir missão no Supabase:', insertError);
+          return false;
+        }
+        console.log(`Missão ${mission.id} inserida no Supabase.`);
+      }
       return true;
     } catch (error) {
-      console.error('Erro ao salvar missão (v2):', error);
+      console.error('Erro geral ao salvar missão no Supabase:', error);
       return false;
     }
   },
 
-  getMissionById: (id: string): Mission | null => {
+  getMissionById: async (id: string): Promise<Mission | null> => {
     try {
-      const storedMissions = MissionStorage.getAllStoredMissions();
-      const foundMission = storedMissions.find(m => m.id === id);
-      return foundMission ? foundMission.content : null;
+      const { data, error } = await supabase
+        .from('missoes')
+        .select('*')
+        .eq('id', id)
+        .single();
+
+      if (error) {
+        if (error.code === 'PGRST116') return null; // Não encontrada
+        console.error('Erro ao buscar missão por ID no Supabase:', error);
+        return null;
+      }
+      return data ? supabaseRowToMission(data) : null;
     } catch (error) {
-      console.error('Erro ao buscar missão (v2):', error);
+      console.error('Erro ao buscar missão por ID no Supabase:', error);
       return null;
     }
   },
 
-  getAllMissions: (): Mission[] => {
-    return MissionStorage.getAllStoredMissions().map(sm => sm.content);
-  },
-
-  getAllStoredMissions: (): StoredMission[] => {
+  getAllMissions: async (): Promise<Mission[]> => {
     try {
-      let storedData = localStorage.getItem(MISSION_STORAGE_KEY);
-      if (!storedData) {
-        const oldDataString = localStorage.getItem(OLD_MISSION_STORAGE_KEY);
-        if (oldDataString) {
-          console.log('Migrando dados de missões antigas...');
-          const oldStoredMissions: any[] = JSON.parse(oldDataString);
-          const newStoredMissions: StoredMission[] = oldStoredMissions.map(oldSm => ({
-            id: oldSm.id,
-            content: migrateOldMissionData(oldSm.content || oldSm), 
-            lastModified: oldSm.lastModified || new Date().toISOString(),
-          }));
-          localStorage.setItem(MISSION_STORAGE_KEY, JSON.stringify(newStoredMissions));
-          console.log('Migração concluída.');
-          storedData = JSON.stringify(newStoredMissions);
-        } else {
-          return []; 
-        }
+      const { data, error } = await supabase
+        .from('missoes')
+        .select('*')
+        .order('creation_date', { ascending: false }); // Opcional: ordenar
+
+      if (error) {
+        console.error('Erro ao buscar todas as missões no Supabase:', error);
+        return [];
       }
-      return JSON.parse(storedData);
+      return data ? data.map(supabaseRowToMission) : [];
     } catch (error) {
-      console.error('Erro ao buscar missões armazenadas (v2):', error);
+      console.error('Erro ao buscar todas as missões no Supabase:', error);
       return [];
     }
   },
 
   deleteMission: async (id: string): Promise<boolean> => {
     try {
-      const storedMissions = MissionStorage.getAllStoredMissions();
-      const updatedMissions = storedMissions.filter(m => m.id !== id);
-      localStorage.setItem(MISSION_STORAGE_KEY, JSON.stringify(updatedMissions));
-      console.log(`Missão ${id} excluída (v2).`);
+      const { error } = await supabase
+        .from('missoes')
+        .delete()
+        .eq('id', id);
+
+      if (error) {
+        console.error('Erro ao excluir missão no Supabase:', error);
+        return false;
+      }
+      console.log(`Missão ${id} excluída do Supabase.`);
       return true;
     } catch (error) {
-      console.error('Erro ao excluir missão (v2):', error);
+      console.error('Erro ao excluir missão no Supabase:', error);
       return false;
     }
   },
